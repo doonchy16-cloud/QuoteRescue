@@ -3,6 +3,8 @@ import { CHANNELS } from './domain.js';
 const POLICY_FORMAT_CONTROLS = /[\u200B-\u200F\u202A-\u202E\u2060\u2066-\u2069\uFEFF]/g;
 const CHANNEL_SCOPE = '(?:phone|call|text|sms|email)';
 const CHANNEL_SCOPE_SUFFIX = `\\s+(?:me\\s+)?(?:by|via)\\s+${CHANNEL_SCOPE}\\b`;
+const REPORTED_PREFIX = /^(?:(?:customer|client|they|he|she)\s+(?:said|wrote|replied)|(?:message|reply|response)\s+(?:received|said|read|was))\s*[:;,—–-]?\s*/i;
+const OUTER_QUOTE = /^["“”'‘’](.*)["“”'‘’]$/s;
 
 function normalizePolicyText(value) {
   return String(value ?? '')
@@ -11,6 +13,21 @@ function normalizePolicyText(value) {
     .replace(/[\r\n\t]+/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim();
+}
+
+function policyCandidates(text) {
+  const candidates = new Set();
+  const queue = [text];
+  while (queue.length) {
+    const candidate = queue.shift()?.trim() ?? '';
+    if (!candidate || candidates.has(candidate)) continue;
+    candidates.add(candidate);
+    const unquoted = candidate.match(OUTER_QUOTE)?.[1]?.trim();
+    if (unquoted && !candidates.has(unquoted)) queue.push(unquoted);
+    const reported = candidate.replace(REPORTED_PREFIX, '').trim();
+    if (reported && reported !== candidate && !candidates.has(reported)) queue.push(reported);
+  }
+  return [...candidates];
 }
 
 const BROAD_STOP = [
@@ -94,8 +111,9 @@ export function deriveContactPolicy(input={}){
   for(const channel of explicitDenied){if(channels[channel]==='allowed')conflicts.push(`Structured ${channel} permission says allowed, but last-contact text denies ${channel}; denial wins.`);channels[channel]='denied';evidence.push(`Last-contact text denies ${channel}.`);}
   for(const channel of explicitAllowed){if(channels[channel]==='denied')conflicts.push(`Structured ${channel} permission says denied, while last-contact text allows ${channel}; denial wins.`);else channels[channel]='allowed';evidence.push(`Last-contact text explicitly allows ${channel}.`);}
 
-  const broadStop=anyMatch(BROAD_STOP,text);
-  const wrongRecipient=anyMatch(WRONG_RECIPIENT,text);
+  const candidates=policyCandidates(text);
+  const broadStop=candidates.some((candidate)=>anyMatch(BROAD_STOP,candidate));
+  const wrongRecipient=candidates.some((candidate)=>anyMatch(WRONG_RECIPIENT,candidate));
   const hardBlocked=input.contactPermission==='do_not_contact'||broadStop||wrongRecipient;
 
   if(hardBlocked){
