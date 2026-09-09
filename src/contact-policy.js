@@ -3,6 +3,7 @@ import { CHANNELS } from './domain.js';
 const BROAD_STOP = [
   /^\s*stop[.!?\s]*$/i,
   /^\s*please\s+stop[.!?\s]*$/i,
+  /\b(?:customer|client|they|he|she)\s+(?:said|wrote|replied)\s+["“']?stop["”']?[.!?\s]*$/i,
   /\bstop\s+(?:reaching\s+out|contacting|messaging)\b/i,
   /\bdo\s+not\s+(?:contact|reach\s+out|message)\b/i,
   /\bdon['’]?t\s+(?:contact|reach\s+out|message)\b/i,
