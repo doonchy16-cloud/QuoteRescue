@@ -49,6 +49,7 @@ export function truncateWithEllipsis(value, maxLength) {
 }
 
 export function formatCurrencyAmount(value) {
+  if (value === null || value === undefined || value === '') return '';
   const number = Number(value);
   if (!Number.isFinite(number)) return '';
   const hasFraction = !Number.isInteger(number);
@@ -138,7 +139,7 @@ export function parseInput(raw = {}) {
     callbackPhone: validateText(raw.callbackPhone, 'callbackPhone', { singleLine:true }, errors),
     trade: validateText(raw.trade, 'trade', { required:true, singleLine:true }, errors),
     jobDescription: validateText(raw.jobDescription, 'jobDescription', { required:true }, errors),
-    quoteAmount: parseDecimal(raw.quoteAmount, 'quoteAmount', { optional:true, min:0, max:LIMITS.quoteAmount, maxFractionDigits:2 }, errors),
+    quoteAmount: parseDecimal(raw.quoteAmount, 'quoteAmount', { optional:true, emptyValue:null, min:0, max:LIMITS.quoteAmount, maxFractionDigits:2 }, errors),
     quoteAgeDays: parseDecimal(raw.quoteAgeDays, 'quoteAgeDays', { optional:false, min:0, max:LIMITS.quoteAgeDays, integer:true }, errors),
     lastContactAgeDays: parseDecimal(raw.lastContactAgeDays, 'lastContactAgeDays', { optional:true, emptyValue:null, min:0, max:LIMITS.lastContactAgeDays, integer:true }, errors),
     stage: parseEnum(raw.stage, 'stage', STAGES, 'estimate_sent', errors),
