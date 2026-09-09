@@ -115,7 +115,7 @@
               <option value="allowed">Allowed to contact</option>
               <option value="do_not_contact">Do not contact / opted out</option>
             </select>
-            <small id="contact-help" class="field-help">Global “Allowed” applies unless a channel below is denied. Explicit opt-out/no-contact evidence overrides any allowed selection.</small>
+            <small id="contact-help" class="field-help">Global “Allowed” records only the overall contact state; it does not create channel permission. Record SMS, phone, and email separately. Explicit opt-out/no-contact evidence overrides any allowed selection.</small>
             <small id="error-contactPermission" class="field-error" data-error="contactPermission"></small>
           </label>
 
@@ -233,7 +233,7 @@
 
             <section id="reactivation-section" class="result-section reactivation-section"><div class="section-heading"><div><p class="mini-label">SEPARATE PLAYBOOK</p><h3>Reactivation touch</h3></div></div><article id="reactivation-card" class="message-card wide"></article></section>
 
-            <section class="result-section"><div class="section-heading"><div><p class="mini-label">READY TO REVIEW</p><h3>Permitted message toolkit</h3></div></div><div id="message-cards" class="message-grid"></div></section>
+            <section class="result-section"><div class="section-heading"><div><p class="mini-label">READY TO REVIEW</p><h3>Policy-filtered message toolkit</h3></div></div><div id="message-cards" class="message-grid"></div></section>
           </div>
 
           <div class="compliance-note"><strong>Use responsibly.</strong> Contact only people you are permitted to contact, honor global and channel-specific restrictions, and review every message before sending. QuoteRescue is a deterministic decision aid, not legal advice or a sales guarantee.</div>
