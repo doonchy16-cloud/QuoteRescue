@@ -52,6 +52,12 @@ test('UI exposes explicit SMS phone and email permission controls', () => {
   }
 });
 
+test('UI explains that global allowed does not fabricate channel permission', () => {
+  assert.equal(html.includes('Global “Allowed” applies unless a channel below is denied.'), false);
+  assert.match(html, /global.*allowed.*does not.*channel permission/i);
+  assert.match(html, /explicitly allowed alternative/i);
+});
+
 test('UI has send-hold and channel-policy surfaces distinct from global do-not-contact block', () => {
   for (const id of ['send-hold-state','send-hold-reason','send-hold-next','channel-policy-summary','effective-channel','send-state']) {
     assert.ok(html.includes(`id="${id}"`), id);
