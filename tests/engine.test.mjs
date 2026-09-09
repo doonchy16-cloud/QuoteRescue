@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateInput, scoreRecovery, generateRecoveryPlan } from '../src/engine.js';
+import { validateInput, scoreRecovery, generateRecoveryPlan, formatPlanText } from '../src/engine.js';
 
 const base = {
   customerName: 'Alex',
@@ -71,5 +71,13 @@ test('generated copy never invents discount or fake urgency', () => {
   const text = JSON.stringify(plan).toLowerCase();
   for (const forbidden of ['discount', 'today only', 'limited time', 'last spot', 'guaranteed']) {
     assert.equal(text.includes(forbidden), false, `found forbidden phrase: ${forbidden}`);
+  }
+});
+
+test('formatPlanText creates an exportable plan with every key section', () => {
+  const plan = generateRecoveryPlan(base);
+  const text = formatPlanText(base, plan);
+  for (const heading of ['QUOTE RESCUE PLAN', 'RECOVERY SCORE', 'NEXT MOVE', '7-DAY RECOVERY SEQUENCE', 'SMS', 'EMAIL', 'VOICEMAIL', 'OBJECTION RESPONSE', 'CLOSE THE LOOP', 'REACTIVATION']) {
+    assert.ok(text.includes(heading), `missing ${heading}`);
   }
 });
