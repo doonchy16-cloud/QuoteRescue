@@ -15,7 +15,7 @@ const has = (text,pattern) => pattern.test(text);
 
 function temporalFor(clause) {
   if (/\b(?:now|currently|today|at this point)\b/.test(clause)) return 'current';
-  if (/\b(?:before|previously|last week|used to|was|were|had been)\b/.test(clause)) return 'past';
+  if (/\b(?:before|previously|earlier|yesterday|last\s+(?:week|month|year)|used to|formerly|was|were|had been)\b/.test(clause)) return 'past';
   return 'current';
 }
 
