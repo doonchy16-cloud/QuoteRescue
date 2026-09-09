@@ -15,7 +15,7 @@ const BLOCKER_GUIDANCE = Object.freeze({
 
 const identity=(input)=>`${input.repName}${input.businessName?` with ${input.businessName}`:''}`;
 const projectRef=(input)=>shortProjectReference(input.jobDescription,64)||input.trade;
-const amountRef=(input)=>input.quoteAmount?` ($${formatCurrencyAmount(input.quoteAmount)})`:'';
+const amountRef=(input)=>input.quoteAmount!==null&&input.quoteAmount!==undefined?` ($${formatCurrencyAmount(input.quoteAmount)})`:'';
 function boundedSms(text){const clean=sanitizeSingleLine(text);return truncateWithEllipsis(clean,320);}
 function boundedSubject(text){const clean=sanitizeSingleLine(text);return truncateWithEllipsis(clean,90);}
 function subjectFor(input){return boundedSubject(`Quick follow-up on your ${sanitizeSingleLine(input.trade)||'project'} estimate`);}
