@@ -6,7 +6,7 @@ const CHANNEL_SCOPE_SUFFIX = `\\s+(?:me\\s+)?(?:by|via)\\s+${CHANNEL_SCOPE}\\b`;
 const REPORTED_PREFIX = /^(?:(?:customer|client|they|he|she)\s+(?:said|wrote|replied)|(?:message|reply|response)\s+(?:received|said|read|was))\s*[:;,—–-]?\s*/i;
 const OUTER_QUOTE = /^["“”'‘’](.*)["“”'‘’]$/s;
 const CONTACT_TARGET = '(?:me|us|them|him|her|this\\s+(?:number|person|customer|client)|the\\s+(?:customer|client))';
-const GLOBAL_CONTACT_END = '(?=$|[.!?,;:\\'"“”‘’]|\\s+(?:again|anymore|further)\\b)';
+const GLOBAL_CONTACT_END = `(?=$|[.!?,;:'"“”‘’]|\\s+(?:again|anymore|further)\\b)`;
 
 function normalizePolicyText(value) {
   return String(value ?? '')
