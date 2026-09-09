@@ -1,188 +1,24 @@
 import { validateInput, generateRecoveryPlan, formatPlanText } from './engine.js';
-
-const form = document.querySelector('#rescue-form');
-const emptyState = document.querySelector('#empty-state');
-const results = document.querySelector('#results');
-const toast = document.querySelector('#toast');
-let currentInput = null;
-let currentPlan = null;
-
-const example = {
-  customerName: 'Alex',
-  trade: 'HVAC',
-  jobDescription: 'replace the upstairs heat pump and air handler',
-  quoteAmount: 8400,
-  quoteAgeDays: 3,
-  stage: 'viewed_no_reply',
-  objection: 'none',
-  lastContact: 'Sent estimate after inspection; customer viewed it yesterday.',
-  tone: 'consultative',
-  primaryChannel: 'sms'
-};
-
-function getInput() {
-  return Object.fromEntries(new FormData(form).entries());
-}
-
-function setFormValues(values) {
-  for (const [name, value] of Object.entries(values)) {
-    const field = form.elements.namedItem(name);
-    if (field) field.value = value;
-  }
-}
-
-function clearErrors() {
-  document.querySelectorAll('[data-error]').forEach((node) => { node.textContent = ''; });
-}
-
-function showErrors(errors) {
-  clearErrors();
-  for (const [field, message] of Object.entries(errors)) {
-    const node = document.querySelector(`[data-error="${field}"]`);
-    if (node) node.textContent = message;
-  }
-  const first = Object.keys(errors)[0];
-  form.elements.namedItem(first)?.focus();
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-}
-
-function factorChip(factor) {
-  const sign = factor.delta > 0 ? '+' : '';
-  const cls = factor.delta >= 0 ? 'positive' : 'negative';
-  return `<span class="factor-chip"><b>${escapeHtml(factor.label)}</b> · ${escapeHtml(factor.detail)} · <span class="${cls}">${sign}${factor.delta}</span></span>`;
-}
-
-function sequenceStep(step, index) {
-  return `<article class="timeline-step">
-    <div class="timeline-day">${escapeHtml(step.day)}</div>
-    <div>
-      <h4>${escapeHtml(step.action)}</h4>
-      <p>${escapeHtml(step.purpose)}</p>
-      <div class="timeline-copy">${escapeHtml(step.copy)}</div>
-    </div>
-    <button class="copy-button" type="button" data-copy="sequence-${index}">Copy</button>
-  </article>`;
-}
-
-function messageCard(title, key, copy, wide = false) {
-  return `<article class="message-card${wide ? ' wide' : ''}">
-    <div class="message-card-header"><h4>${escapeHtml(title)}</h4><button class="copy-button" type="button" data-copy="${escapeHtml(key)}">Copy</button></div>
-    <div class="message-copy">${escapeHtml(copy)}</div>
-  </article>`;
-}
-
-function renderPlan(input, plan) {
-  document.querySelector('#result-title').textContent = `${input.customerName}'s ${input.trade} quote`;
-  document.querySelector('#score-value').textContent = plan.score;
-  document.querySelector('#score-band').textContent = plan.band;
-  const scoreRing = document.querySelector('#score-ring');
-  scoreRing.style.setProperty('--score-angle', `${plan.score * 3.6}deg`);
-  scoreRing.setAttribute('aria-label', `Recovery score ${plan.score} out of 100: ${plan.band}`);
-  document.querySelector('#factor-list').innerHTML = plan.factors.map(factorChip).join('');
-  document.querySelector('#diagnosis').textContent = plan.diagnosis;
-  document.querySelector('#next-move').textContent = plan.nextMove;
-  document.querySelector('#sequence').innerHTML = plan.sequence.map(sequenceStep).join('');
-
-  const email = `Subject: ${plan.email.subject}\n\n${plan.email.body}`;
-  document.querySelector('#message-cards').innerHTML = [
-    messageCard('SMS', 'sms', plan.sms),
-    messageCard('Voicemail', 'voicemail', plan.voicemail),
-    messageCard('Email', 'email', email, true),
-    messageCard('Objection response', 'objection', plan.objectionResponse, true),
-    messageCard('Close the loop', 'closeLoop', plan.closeLoop),
-    messageCard('Reactivation', 'reactivation', plan.reactivation)
-  ].join('');
-
-  emptyState.hidden = true;
-  results.hidden = false;
-  results.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function copyForKey(key) {
-  if (!currentPlan) return '';
-  if (key === 'full') return formatPlanText(currentInput, currentPlan);
-  if (key === 'sms') return currentPlan.sms;
-  if (key === 'voicemail') return currentPlan.voicemail;
-  if (key === 'email') return `Subject: ${currentPlan.email.subject}\n\n${currentPlan.email.body}`;
-  if (key === 'objection') return currentPlan.objectionResponse;
-  if (key === 'closeLoop') return currentPlan.closeLoop;
-  if (key === 'reactivation') return currentPlan.reactivation;
-  if (key.startsWith('sequence-')) return currentPlan.sequence[Number(key.split('-')[1])]?.copy ?? '';
-  return '';
-}
-
-async function copyText(text) {
-  if (!text) return;
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch {
-    const area = document.createElement('textarea');
-    area.value = text;
-    area.style.position = 'fixed';
-    area.style.opacity = '0';
-    document.body.appendChild(area);
-    area.select();
-    document.execCommand('copy');
-    area.remove();
-  }
-  showToast('Copied');
-}
-
-function showToast(message) {
-  toast.textContent = message;
-  toast.classList.add('show');
-  window.clearTimeout(showToast.timer);
-  showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 1400);
-}
-
-function downloadText() {
-  if (!currentPlan) return;
-  const text = formatPlanText(currentInput, currentPlan);
-  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const safeName = `${currentInput.customerName}-${currentInput.trade}-quote-rescue`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  a.href = url;
-  a.download = `${safeName || 'quote-rescue-plan'}.txt`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  showToast('Plan downloaded');
-}
-
-form.addEventListener('submit', (event) => {
-  event.preventDefault();
-  const input = getInput();
-  const validation = validateInput(input);
-  if (!validation.valid) {
-    showErrors(validation.errors);
-    return;
-  }
-  clearErrors();
-  currentInput = validation.value;
-  currentPlan = generateRecoveryPlan(currentInput);
-  renderPlan(currentInput, currentPlan);
-});
-
-document.querySelector('#load-example').addEventListener('click', () => {
-  setFormValues(example);
-  clearErrors();
-  showToast('Example loaded');
-});
-
-document.addEventListener('click', (event) => {
-  const button = event.target.closest('[data-copy]');
-  if (!button) return;
-  copyText(copyForKey(button.dataset.copy));
-});
-
-document.querySelector('#download-plan').addEventListener('click', downloadText);
+const form=document.querySelector('#rescue-form'),emptyState=document.querySelector('#empty-state'),results=document.querySelector('#results'),staleBanner=document.querySelector('#stale-banner'),invalidBanner=document.querySelector('#invalid-banner'),blockedState=document.querySelector('#blocked-state'),currentPlanContent=document.querySelector('#current-plan-content'),toast=document.querySelector('#toast'),errorSummary=document.querySelector('#error-summary');let currentInput=null,currentPlan=null,uiStatus='empty';
+const example={repName:'Sam',businessName:'Peak HVAC',callbackPhone:'(555) 010-2020',customerName:'Alex',trade:'HVAC',jobDescription:'replace the upstairs heat pump and air handler',quoteAmount:'8400',quoteAgeDays:'3',stage:'viewed_no_reply',objection:'none',contactPermission:'allowed',lastContact:'Sent estimate after inspection; customer viewed it yesterday.',tone:'consultative',primaryChannel:'sms'};
+const escapeHtml=(value)=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');const getInput=()=>Object.fromEntries(new FormData(form).entries());
+function setFormValues(values){for(const[name,value]of Object.entries(values)){const field=form.elements.namedItem(name);if(field)field.value=value;}}
+function setExportEnabled(enabled){document.querySelectorAll('[data-copy], #download-plan').forEach((button)=>{button.disabled=!enabled;});}
+function clearErrors(){errorSummary.hidden=true;errorSummary.innerHTML='';form.querySelectorAll('[data-error]').forEach((node)=>{node.textContent='';});form.querySelectorAll('[aria-invalid="true"]').forEach((field)=>field.setAttribute('aria-invalid','false'));}
+function showErrors(errors){clearErrors();const items=[];for(const[field,message]of Object.entries(errors)){const errorNode=document.querySelector(`[data-error="${field}"]`),input=form.elements.namedItem(field);if(errorNode)errorNode.textContent=message;if(input)input.setAttribute('aria-invalid','true');items.push(`<li>${escapeHtml(message)}</li>`);}errorSummary.innerHTML=`<strong>Fix these fields before generating a plan:</strong><ul>${items.join('')}</ul>`;errorSummary.hidden=false;form.elements.namedItem(Object.keys(errors)[0])?.focus();}
+function markPlanStale(){if(!currentPlan||uiStatus==='stale')return;uiStatus='stale';staleBanner.hidden=false;invalidBanner.hidden=true;results.classList.add('is-stale');setExportEnabled(false);}
+function markPlanInvalid(){if(!currentPlan)return;uiStatus='invalid';staleBanner.hidden=true;invalidBanner.hidden=false;results.classList.add('is-stale');setExportEnabled(false);}
+function resetPlanState(status){uiStatus=status;staleBanner.hidden=true;invalidBanner.hidden=true;results.classList.remove('is-stale');}
+function factorChip(factor){const sign=factor.delta>0?'+':'';return `<span class="factor-chip"><b>${escapeHtml(factor.label)}</b> · ${escapeHtml(factor.detail)} · <span class="${factor.delta>=0?'positive':'negative'}">${sign}${factor.delta}</span></span>`;}
+function stepCopy(step){const parts=[];if(step.subject)parts.push(`Subject: ${step.subject}`);if(step.body)parts.push(step.body);if(step.voicemail)parts.push(`Voicemail: ${step.voicemail}`);if(step.sms)parts.push(`SMS: ${step.sms}`);return parts.join('\n\n');}
+function sequenceStep(step,index){const content=[];if(step.subject)content.push(`<div class="copy-block"><span class="copy-label">Subject</span>${escapeHtml(step.subject)}</div>`);if(step.body)content.push(`<div class="copy-block">${escapeHtml(step.body)}</div>`);if(step.voicemail)content.push(`<div class="copy-block"><span class="copy-label">Voicemail</span>${escapeHtml(step.voicemail)}</div>`);if(step.sms)content.push(`<div class="copy-block"><span class="copy-label">SMS</span>${escapeHtml(step.sms)}</div>`);return `<article class="timeline-step"><div class="timeline-day">${escapeHtml(step.day)}</div><div><h4>${escapeHtml(step.action)}</h4><p>${escapeHtml(step.purpose)}</p>${content.join('')}</div><button class="copy-button" type="button" data-copy="step-${index}">Copy step</button></article>`;}
+function messageCard(title,key,copy,wide=false){return `<article class="message-card${wide?' wide':''}"><div class="message-card-header"><h4>${escapeHtml(title)}</h4><button class="copy-button" type="button" data-copy="${escapeHtml(key)}">Copy</button></div><div class="message-copy">${escapeHtml(copy)}</div></article>`;}
+function renderEvidence(plan){document.querySelector('#evidence-list').innerHTML=(plan.context.evidence.length?plan.context.evidence:['No deterministic context cue matched.']).map((item)=>`<li>${escapeHtml(item)}</li>`).join('');document.querySelector('#conflict-list').innerHTML=(plan.context.conflicts.length?plan.context.conflicts:['No conflicts detected.']).map((item)=>`<li>${escapeHtml(item)}</li>`).join('');}
+function renderBlocked(input,plan){resetPlanState('blocked');document.querySelector('#result-title').textContent=`${input.customerName}'s ${input.trade} quote`;document.querySelector('#blocked-reason').textContent=plan.blockedReason;document.querySelector('#blocked-next').textContent=plan.nextMove;blockedState.hidden=false;currentPlanContent.hidden=true;emptyState.hidden=true;results.hidden=false;setExportEnabled(false);scrollToResults();}
+function renderPlan(input,plan){resetPlanState('current');blockedState.hidden=true;currentPlanContent.hidden=false;document.querySelector('#result-title').textContent=`${input.customerName}'s ${input.trade} quote`;document.querySelector('#score-value').textContent=plan.score;document.querySelector('#score-band').textContent=plan.band;const ring=document.querySelector('#score-ring');ring.style.setProperty('--score-angle',`${plan.score*3.6}deg`);ring.setAttribute('aria-label',`Recovery priority ${plan.score} out of 100: ${plan.band}`);document.querySelector('#factor-list').innerHTML=plan.factors.map(factorChip).join('');document.querySelector('#context-summary').innerHTML=`<span><b>Mode</b>${escapeHtml(plan.context.recoveryMode.replaceAll('_',' '))}</span><span><b>Blocker</b>${escapeHtml(plan.context.primaryBlocker.replaceAll('_',' '))}</span><span><b>Engagement</b>${escapeHtml(plan.context.engagementState)}</span><span><b>Confidence</b>${escapeHtml(plan.context.confidence)}</span>`;document.querySelector('#diagnosis').textContent=plan.diagnosis;document.querySelector('#next-move').textContent=plan.nextMove;renderEvidence(plan);document.querySelector('#sequence').innerHTML=plan.campaign.sevenDaySteps.map(sequenceStep).join('');document.querySelector('#reactivation-card').innerHTML=`<div class="message-card-header"><h4>Reactivation message</h4><button class="copy-button" type="button" data-copy="reactivation">Copy</button></div><div class="message-copy">${escapeHtml(plan.campaign.reactivation)}</div>`;const email=`Subject: ${plan.campaign.email.subject}\n\n${plan.campaign.email.body}`;document.querySelector('#message-cards').innerHTML=[messageCard('Opening SMS','sms',plan.campaign.sms),messageCard('Voicemail','voicemail',plan.campaign.voicemail),messageCard('Email','email',email,true),messageCard('Blocker response','objection',plan.campaign.objectionResponse,true),messageCard('Close the loop','closeLoop',plan.campaign.closeLoop)].join('');emptyState.hidden=true;results.hidden=false;setExportEnabled(true);scrollToResults();}
+function scrollToResults(){const reduceMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;results.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'start'});}
+function copyForKey(key){if(!currentPlan||uiStatus!=='current')return'';if(key==='full')return formatPlanText(currentInput,currentPlan);if(key==='sms')return currentPlan.campaign.sms;if(key==='voicemail')return currentPlan.campaign.voicemail;if(key==='email')return`Subject: ${currentPlan.campaign.email.subject}\n\n${currentPlan.campaign.email.body}`;if(key==='objection')return currentPlan.campaign.objectionResponse;if(key==='closeLoop')return currentPlan.campaign.closeLoop;if(key==='reactivation')return currentPlan.campaign.reactivation;if(key.startsWith('step-'))return stepCopy(currentPlan.campaign.sevenDaySteps[Number(key.split('-')[1])]??{});return'';}
+async function copyText(text){if(!text)return false;try{await navigator.clipboard.writeText(text);showToast('Copied');return true;}catch{const area=document.createElement('textarea');area.value=text;area.style.position='fixed';area.style.opacity='0';document.body.appendChild(area);area.select();const copied=document.execCommand('copy');area.remove();showToast(copied?'Copied':'Copy failed');return copied;}}
+function showToast(message){toast.textContent=message;toast.classList.add('show');clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.classList.remove('show'),1500);}
+function downloadText(){if(!currentPlan||uiStatus!=='current')return;const blob=new Blob([formatPlanText(currentInput,currentPlan)],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a'),safeName=`${currentInput.customerName}-${currentInput.trade}-quote-rescue`.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');a.href=url;a.download=`${safeName||'quote-rescue-plan'}.txt`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);showToast('Plan downloaded');}
+form.addEventListener('input',markPlanStale);form.addEventListener('change',markPlanStale);form.addEventListener('submit',(event)=>{event.preventDefault();const raw=getInput(),validation=validateInput(raw);if(!validation.valid){showErrors(validation.errors);markPlanInvalid();return;}clearErrors();currentInput=validation.value;currentPlan=generateRecoveryPlan(currentInput);if(currentPlan.blocked)renderBlocked(currentInput,currentPlan);else renderPlan(currentInput,currentPlan);});document.querySelector('#load-example').addEventListener('click',()=>{setFormValues(example);clearErrors();markPlanStale();showToast('Example loaded');});document.addEventListener('click',(event)=>{const button=event.target.closest('[data-copy]');if(button&&!button.disabled)copyText(copyForKey(button.dataset.copy));});document.querySelector('#download-plan').addEventListener('click',downloadText);

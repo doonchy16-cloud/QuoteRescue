@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+const html=await readFile(new URL('../index.html',import.meta.url),'utf8').catch(()=> '');const app=await readFile(new URL('../src/app.js',import.meta.url),'utf8').catch(()=> '');const css=await readFile(new URL('../styles.css',import.meta.url),'utf8').catch(()=> '');
+test('UI collects representative identity and structured contact permission',()=>{for(const token of ['name="repName"','name="businessName"','name="callbackPhone"','name="contactPermission"'])assert.ok(html.includes(token),token);});
+test('text inputs expose explicit max lengths matching domain limits',()=>{assert.match(html,/name="customerName"[^>]*maxlength="60"/);assert.match(html,/name="repName"[^>]*maxlength="60"/);assert.match(html,/name="trade"[^>]*maxlength="80"/);assert.match(html,/name="jobDescription"[^>]*maxlength="600"/);assert.match(html,/name="lastContact"[^>]*maxlength="800"/);});
+test('accessible error summary and field descriptions are present',()=>{assert.ok(html.includes('id="error-summary"'));assert.match(html,/name="customerName"[^>]*aria-describedby="error-customerName"/);assert.ok(html.includes('id="error-customerName"'));assert.match(app,/aria-invalid/);});
+test('UI has explicit stale invalid and blocked result surfaces',()=>{for(const id of ['stale-banner','invalid-banner','blocked-state','reactivation-section'])assert.ok(html.includes(`id="${id}"`),id);assert.match(app,/markPlanStale/);assert.match(app,/setExportEnabled/);});
+test('app handles clipboard failure honestly and respects reduced motion',()=>{assert.match(app,/Copy failed/);assert.match(app,/prefers-reduced-motion/);});
+test('CSS includes visual treatment for stale blocked and disabled states',()=>{for(const token of ['.state-banner.stale','.blocked-card','button:disabled','.results.is-stale'])assert.ok(css.includes(token),token);});

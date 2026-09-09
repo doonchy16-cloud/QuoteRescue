@@ -3,215 +3,66 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="QuoteRescue turns stale contractor estimates into a prioritized follow-up plan with ready-to-send SMS, email, voicemail, and objection responses." />
+  <meta name="description" content="QuoteRescue turns stale contractor estimates into safe, prioritized recovery plans with channel-specific follow-up copy." />
   <title>QuoteRescue — Recover the quotes you already earned</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="#top" aria-label="QuoteRescue home">
-      <span class="brand-mark" aria-hidden="true">QR</span>
-      <span>QuoteRescue</span>
-    </a>
-    <span class="privacy-pill">🔒 Runs in your browser</span>
+  <header class="topbar shell">
+    <a class="brand" href="#top" aria-label="QuoteRescue home"><span class="brand-mark" aria-hidden="true">QR</span><span>QuoteRescue</span></a>
+    <span class="privacy-pill">🔒 Browser-only V1</span>
   </header>
 
   <main id="top">
     <section class="hero shell">
-      <div class="hero-copy">
+      <div>
         <p class="eyebrow">ESTIMATE RECOVERY WORKBENCH</p>
-        <h1>Stop guessing what to send after the quote goes quiet.</h1>
-        <p class="lede">Diagnose the opportunity, prioritize it, and get a complete 7-day follow-up plan with messages you can actually send.</p>
-        <div class="hero-points" aria-label="QuoteRescue benefits">
-          <span>⚡ Under 60 seconds</span>
-          <span>💬 SMS + email + voicemail</span>
-          <span>🎯 Objection-specific</span>
-          <span>🧠 Explainable recovery score</span>
-        </div>
+        <h1>Recover the quote without guessing—or over-chasing.</h1>
+        <p class="lede">QuoteRescue checks contact permission first, reconciles what actually happened, prioritizes the opportunity, and builds a channel-specific recovery campaign you can review before sending.</p>
+        <div class="hero-points"><span>🛡️ Permission gate first</span><span>🎯 Explainable priority</span><span>💬 Channel-specific</span><span>🧠 Context-aware</span></div>
       </div>
-      <aside class="hero-card" aria-label="Product promise">
-        <p class="mini-label">ONE RECOVERED JOB CAN PAY FOR THIS MANY TIMES OVER</p>
-        <div class="hero-number">1 quote → 1 plan</div>
-        <p>Use QuoteRescue as a decision aid and copywriter—not an auto-sender. You stay in control of every customer message.</p>
-      </aside>
+      <aside class="hero-card"><p class="mini-label">PAID-VALUE PROMISE</p><strong class="hero-number">Decision aid + send-ready toolkit</strong><p>Not an auto-sender. Not a conversion prediction. QuoteRescue helps you decide whether to follow up, how to follow up, and when to stop.</p></aside>
     </section>
 
     <section class="workspace shell" aria-label="Quote recovery workspace">
       <form id="rescue-form" class="panel intake" novalidate>
-        <div class="panel-heading">
-          <div>
-            <p class="step-label">STEP 1</p>
-            <h2>Tell us what happened</h2>
-          </div>
-          <button class="text-button" id="load-example" type="button">Load example</button>
-        </div>
+        <div class="panel-heading"><div><p class="step-label">STEP 1</p><h2>Build the recovery context</h2></div><button id="load-example" class="text-button" type="button">Load example</button></div>
+        <div id="error-summary" class="error-summary" role="alert" aria-live="assertive" hidden></div>
 
-        <div class="grid two">
-          <label>
-            Customer first name <span aria-hidden="true">*</span>
-            <input name="customerName" autocomplete="off" placeholder="Alex" required />
-            <small class="field-error" data-error="customerName"></small>
-          </label>
-          <label>
-            Trade / service <span aria-hidden="true">*</span>
-            <input name="trade" autocomplete="off" placeholder="HVAC, roofing, windows…" required />
-            <small class="field-error" data-error="trade"></small>
-          </label>
-        </div>
+        <fieldset><legend>Your identity</legend><div class="grid two">
+          <label>Representative first name <span aria-hidden="true">*</span><input name="repName" maxlength="60" autocomplete="given-name" placeholder="Sam" aria-describedby="error-repName" required /><small id="error-repName" class="field-error" data-error="repName"></small></label>
+          <label>Business name<input name="businessName" maxlength="100" autocomplete="organization" placeholder="Peak HVAC" aria-describedby="error-businessName" /><small id="error-businessName" class="field-error" data-error="businessName"></small></label>
+        </div><label>Callback phone <span class="optional">optional</span><input name="callbackPhone" maxlength="40" autocomplete="tel" placeholder="(555) 010-2020" aria-describedby="error-callbackPhone" /><small id="error-callbackPhone" class="field-error" data-error="callbackPhone"></small></label></fieldset>
 
-        <label>
-          Job description <span aria-hidden="true">*</span>
-          <textarea name="jobDescription" rows="3" placeholder="Replace upstairs heat pump and air handler" required></textarea>
-          <small class="field-error" data-error="jobDescription"></small>
-        </label>
+        <fieldset><legend>Customer + quote</legend><div class="grid two">
+          <label>Customer first name <span aria-hidden="true">*</span><input name="customerName" maxlength="60" autocomplete="off" placeholder="Alex" aria-describedby="error-customerName" required /><small id="error-customerName" class="field-error" data-error="customerName"></small></label>
+          <label>Trade / service <span aria-hidden="true">*</span><input name="trade" maxlength="80" autocomplete="off" placeholder="HVAC, roofing, windows…" aria-describedby="error-trade" required /><small id="error-trade" class="field-error" data-error="trade"></small></label>
+        </div><label>Job description <span aria-hidden="true">*</span><textarea name="jobDescription" maxlength="600" rows="3" placeholder="Replace upstairs heat pump and air handler" aria-describedby="error-jobDescription" required></textarea><small id="error-jobDescription" class="field-error" data-error="jobDescription"></small></label>
+        <div class="grid two"><label>Quote amount<div class="money-input"><span>$</span><input name="quoteAmount" type="number" min="0" max="1000000000" step="1" placeholder="8400" aria-describedby="error-quoteAmount" /></div><small id="error-quoteAmount" class="field-error" data-error="quoteAmount"></small></label><label>Quote age (days) <span aria-hidden="true">*</span><input name="quoteAgeDays" type="number" min="0" max="3650" step="1" value="3" aria-describedby="error-quoteAgeDays" required /><small id="error-quoteAgeDays" class="field-error" data-error="quoteAgeDays"></small></label></div></fieldset>
 
-        <div class="grid two">
-          <label>
-            Quote amount
-            <div class="money-input"><span>$</span><input name="quoteAmount" type="number" min="0" step="1" placeholder="8400" /></div>
-            <small class="field-error" data-error="quoteAmount"></small>
-          </label>
-          <label>
-            Quote age (days)
-            <input name="quoteAgeDays" type="number" min="0" max="3650" step="1" value="3" />
-            <small class="field-error" data-error="quoteAgeDays"></small>
-          </label>
-        </div>
+        <fieldset><legend>What happened</legend><div class="grid two"><label>Current stage<select name="stage" aria-describedby="error-stage"><option value="estimate_sent">Estimate sent</option><option value="viewed_no_reply" selected>Viewed / no reply</option><option value="objection">Customer raised an objection</option><option value="considering_competitor">Considering a competitor</option><option value="delayed_timing">Delayed timing</option><option value="budget_issue">Budget issue</option><option value="financing_issue">Financing issue</option><option value="lost_ghosted">Lost / ghosted</option></select><small id="error-stage" class="field-error" data-error="stage"></small></label><label>Main objection<select name="objection" aria-describedby="error-objection"><option value="none" selected>No clear objection</option><option value="budget">Budget</option><option value="price">Price / quote feels high</option><option value="timing">Timing</option><option value="competitor">Comparing competitor</option><option value="trust">Trust / uncertainty</option><option value="financing">Financing</option><option value="spouse_partner">Needs spouse / partner approval</option><option value="not_ready">Not ready yet</option></select><small id="error-objection" class="field-error" data-error="objection"></small></label></div>
+        <label>Contact permission / opt-out status<select name="contactPermission" aria-describedby="contact-help error-contactPermission"><option value="unknown" selected>Unknown / not explicitly recorded</option><option value="allowed">Allowed to contact</option><option value="limited_channel">Permission may be channel-limited</option><option value="do_not_contact">Do not contact / opted out</option></select><small id="contact-help" class="field-help">If you know the customer opted out, choose “Do not contact.” QuoteRescue also checks the context text for explicit no-contact language.</small><small id="error-contactPermission" class="field-error" data-error="contactPermission"></small></label>
+        <label>Last contact / context<textarea name="lastContact" maxlength="800" rows="3" placeholder="Sent estimate after inspection. Customer viewed it yesterday and asked about timing." aria-describedby="error-lastContact"></textarea><small id="error-lastContact" class="field-error" data-error="lastContact"></small></label></fieldset>
 
-        <div class="grid two">
-          <label>
-            Current stage
-            <select name="stage">
-              <option value="estimate_sent">Estimate sent</option>
-              <option value="viewed_no_reply" selected>Viewed / no reply</option>
-              <option value="objection">Customer raised an objection</option>
-              <option value="considering_competitor">Considering a competitor</option>
-              <option value="delayed_timing">Delayed timing</option>
-              <option value="budget_issue">Budget issue</option>
-              <option value="financing_issue">Financing issue</option>
-              <option value="lost_ghosted">Lost / ghosted</option>
-            </select>
-          </label>
-          <label>
-            Main objection
-            <select name="objection">
-              <option value="none" selected>No clear objection</option>
-              <option value="budget">Budget</option>
-              <option value="price">Price / quote feels high</option>
-              <option value="timing">Timing</option>
-              <option value="competitor">Comparing competitor</option>
-              <option value="trust">Trust / uncertainty</option>
-              <option value="financing">Financing</option>
-              <option value="spouse_partner">Needs spouse / partner approval</option>
-              <option value="not_ready">Not ready yet</option>
-            </select>
-          </label>
-        </div>
+        <fieldset><legend>Campaign preference</legend><div class="grid two"><label>Tone<select name="tone" aria-describedby="error-tone"><option value="consultative" selected>Consultative</option><option value="warm">Warm</option><option value="concise">Concise</option><option value="premium">Premium</option><option value="direct">Direct</option></select><small id="error-tone" class="field-error" data-error="tone"></small></label><label>Primary channel<select name="primaryChannel" aria-describedby="error-primaryChannel"><option value="sms" selected>SMS / text</option><option value="email">Email</option><option value="phone">Phone / voicemail</option></select><small id="error-primaryChannel" class="field-error" data-error="primaryChannel"></small></label></div></fieldset>
 
-        <label>
-          Last contact / context
-          <textarea name="lastContact" rows="2" placeholder="Sent estimate after inspection; customer opened it yesterday."></textarea>
-        </label>
-
-        <div class="grid two">
-          <label>
-            Tone
-            <select name="tone">
-              <option value="consultative" selected>Consultative</option>
-              <option value="warm">Warm</option>
-              <option value="concise">Concise</option>
-              <option value="premium">Premium</option>
-              <option value="direct">Direct</option>
-            </select>
-          </label>
-          <label>
-            Primary channel
-            <select name="primaryChannel">
-              <option value="sms" selected>SMS / text</option>
-              <option value="email">Email</option>
-              <option value="phone">Phone / voicemail</option>
-            </select>
-          </label>
-        </div>
-
-        <button class="primary-button" type="submit">
-          <span>Build my recovery plan</span>
-          <span aria-hidden="true">→</span>
-        </button>
-        <p class="form-note">No customer data is uploaded or stored by QuoteRescue V1.</p>
+        <button class="primary-button" type="submit"><span>Analyze + build recovery plan</span><span aria-hidden="true">→</span></button><p class="form-note">No customer data is uploaded or stored by QuoteRescue V1.</p>
       </form>
 
-      <section class="panel output" aria-live="polite" aria-busy="false">
-        <div id="empty-state" class="empty-state">
-          <div class="empty-icon" aria-hidden="true">↗</div>
-          <p class="step-label">STEP 2</p>
-          <h2>Your recovery plan appears here</h2>
-          <p>Enter the quote context and QuoteRescue will produce a prioritized action plan—not just a generic follow-up message.</p>
-          <ul>
-            <li>Recovery score + factor breakdown</li>
-            <li>Situation diagnosis + next best move</li>
-            <li>7-day contact sequence</li>
-            <li>SMS, email, voicemail, objections + reactivation</li>
-          </ul>
-        </div>
-
-        <div id="results" class="results" hidden>
-          <div class="result-toolbar">
-            <div>
-              <p class="step-label">RECOVERY PLAN</p>
-              <h2 id="result-title">Quote Rescue</h2>
-            </div>
-            <div class="toolbar-actions">
-              <button type="button" class="secondary-button" data-copy="full">Copy full plan</button>
-              <button type="button" class="secondary-button" id="download-plan">Download .txt</button>
-            </div>
-          </div>
-
-          <div class="score-card">
-            <div class="score-ring" id="score-ring" aria-label="Recovery score">
-              <strong id="score-value">0</strong><span>/100</span>
-            </div>
-            <div>
-              <p class="mini-label">RECOVERY PRIORITY</p>
-              <h3 id="score-band"></h3>
-              <p class="muted">A transparent prioritization score—not a promise of conversion.</p>
-            </div>
-          </div>
-
-          <div id="factor-list" class="factor-list" aria-label="Recovery score factors"></div>
-
-          <div class="insight-grid">
-            <article class="insight-card">
-              <p class="mini-label">WHAT'S PROBABLY HAPPENING</p>
-              <p id="diagnosis"></p>
-            </article>
-            <article class="insight-card accent">
-              <p class="mini-label">BEST NEXT MOVE</p>
-              <p id="next-move"></p>
-            </article>
-          </div>
-
-          <section class="result-section">
-            <div class="section-heading">
-              <div><p class="mini-label">SEQUENCE</p><h3>7-day recovery cadence</h3></div>
-            </div>
-            <div id="sequence" class="timeline"></div>
-          </section>
-
-          <section class="result-section">
-            <div class="section-heading"><div><p class="mini-label">READY TO SEND</p><h3>Message toolkit</h3></div></div>
-            <div id="message-cards" class="message-grid"></div>
-          </section>
-
-          <div class="compliance-note">
-            <strong>Use responsibly.</strong> Contact only people you are permitted to contact, honor opt-outs, and review every message before sending. QuoteRescue does not provide legal advice or guarantee a response or sale.
-          </div>
-        </div>
-      </section>
+      <section class="panel output" aria-live="polite"><div id="empty-state" class="empty-state"><div class="empty-icon" aria-hidden="true">↗</div><p class="step-label">STEP 2</p><h2>Your decision + campaign appears here</h2><p>QuoteRescue will first decide whether outreach is allowed, then reconcile the recovery state before generating messages.</p><ul><li>Permission / opt-out gate</li><li>Recovery mode + blocker reconciliation</li><li>Priority score + evidence</li><li>7-day campaign + separate reactivation</li></ul></div>
+        <div id="results" class="results" hidden><div id="stale-banner" class="state-banner stale" hidden><strong>Plan is stale.</strong> You changed the inputs. Regenerate before copying or downloading.</div><div id="invalid-banner" class="state-banner invalid" hidden><strong>Plan is not current.</strong> Fix the form errors and regenerate before using this result.</div>
+          <div class="result-toolbar"><div><p class="step-label">RECOVERY DECISION</p><h2 id="result-title">Quote Rescue</h2></div><div class="toolbar-actions"><button type="button" class="secondary-button" data-copy="full" disabled>Copy full plan</button><button type="button" class="secondary-button" id="download-plan" disabled>Download .txt</button></div></div>
+          <section id="blocked-state" class="blocked-card" hidden><div class="blocked-icon" aria-hidden="true">⛔</div><div><p class="mini-label danger-label">OUTREACH BLOCKED</p><h3>Do not send a recovery campaign.</h3><p id="blocked-reason"></p><p id="blocked-next"></p></div></section>
+          <div id="current-plan-content"><div class="score-card"><div class="score-ring" id="score-ring" aria-label="Recovery priority"><strong id="score-value">0</strong><span>/100</span></div><div><p class="mini-label">RECOVERY PRIORITY</p><h3 id="score-band"></h3><p class="muted">Work-priority heuristic—not a conversion probability.</p></div></div><div id="factor-list" class="factor-list" aria-label="Priority factors"></div>
+            <div class="context-grid"><article class="insight-card"><p class="mini-label">DERIVED RECOVERY STATE</p><div id="context-summary" class="context-summary"></div></article><article class="insight-card accent"><p class="mini-label">BEST NEXT MOVE</p><p id="next-move"></p></article></div><article class="insight-card diagnosis-card"><p class="mini-label">WHAT'S PROBABLY HAPPENING</p><p id="diagnosis"></p></article>
+            <details class="evidence-panel"><summary>Why QuoteRescue decided this</summary><div class="evidence-columns"><div><h4>Evidence</h4><ul id="evidence-list"></ul></div><div><h4>Conflicts / reconciliation</h4><ul id="conflict-list"></ul></div></div></details>
+            <section class="result-section"><div class="section-heading"><div><p class="mini-label">ACTIVE CAMPAIGN</p><h3>7-day recovery cadence</h3></div></div><div id="sequence" class="timeline"></div></section>
+            <section id="reactivation-section" class="result-section reactivation-section"><div class="section-heading"><div><p class="mini-label">SEPARATE PLAYBOOK</p><h3>30+ day reactivation</h3></div></div><article id="reactivation-card" class="message-card wide"></article></section>
+            <section class="result-section"><div class="section-heading"><div><p class="mini-label">READY TO REVIEW</p><h3>Message toolkit</h3></div></div><div id="message-cards" class="message-grid"></div></section></div>
+          <div class="compliance-note"><strong>Use responsibly.</strong> Contact only people you are permitted to contact, honor opt-outs, and review every message before sending. QuoteRescue is a deterministic decision aid, not legal advice or a sales guarantee.</div>
+        </div></section>
     </section>
   </main>
-
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="./src/app.js"></script>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div><script type="module" src="./src/app.js"></script>
 </body>
 </html>
