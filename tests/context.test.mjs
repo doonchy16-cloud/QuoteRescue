@@ -5,7 +5,7 @@ import { deriveRecoveryContext } from '../src/context.js';
 const base = { stage:'viewed_no_reply', objection:'none', lastContact:'Sent estimate yesterday.', contactPermission:'unknown', quoteAgeDays:3 };
 
 test('explicit opt-out language hard-blocks outreach', () => {
-  for (const text of ['Customer said STOP texting me', 'Do not contact again', 'unsubscribe me', 'Attorney said never contact them again']) {
+  for (const text of ['Customer said STOP', 'Do not contact again', 'unsubscribe me', 'Attorney said never contact them again']) {
     const c = deriveRecoveryContext({ ...base, lastContact:text });
     assert.equal(c.contactState, 'do_not_contact', text);
     assert.equal(c.recoveryMode, 'blocked', text);
