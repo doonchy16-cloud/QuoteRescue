@@ -214,12 +214,31 @@ function renderPlan(input, plan) {
 }
 
 function scrollToResults() {
-  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  results.scrollIntoView({ behavior:reduceMotion ? 'auto' : 'smooth', block:'start' });
+  let reduceMotion = false;
+  try {
+    reduceMotion = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+  } catch {
+    reduceMotion = false;
+  }
+  try {
+    results.scrollIntoView?.({ behavior:reduceMotion ? 'auto' : 'smooth', block:'start' });
+  } catch {
+    // Scrolling is progressive enhancement; rendering must remain usable without it.
+  }
+}
+
+function ensureCurrentPlanFresh() {
+  if (!currentPlan || !currentInput || uiStatus !== 'current') return false;
+  const validation = validateInput(getInput());
+  if (!validation.valid || JSON.stringify(validation.value) !== JSON.stringify(currentInput)) {
+    markPlanStale();
+    return false;
+  }
+  return true;
 }
 
 function copyForKey(key) {
-  if (!currentPlan || uiStatus !== 'current') return '';
+  if (!ensureCurrentPlanFresh()) return '';
   if (key === 'full') return formatPlanText(currentInput, currentPlan);
   if (key === 'sms') return currentPlan.campaign.sms;
   if (key === 'voicemail') return currentPlan.campaign.voicemail;
@@ -264,21 +283,23 @@ function showToast(message) {
 }
 
 function downloadText() {
-  if (!currentPlan || uiStatus !== 'current') return;
-  const blob = new Blob([formatPlanText(currentInput, currentPlan)], { type:'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const safeName = `${currentInput.customerName}-${currentInput.trade}-quote-rescue`.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-  a.href = url; a.download = `${safeName || 'quote-rescue-plan'}.txt`;
+  if (!ensureCurrentPlanFresh()) return;
+  let url = null;
+  let a = null;
   try {
+    const blob = new Blob([formatPlanText(currentInput, currentPlan)], { type:'text/plain;charset=utf-8' });
+    url = URL.createObjectURL(blob);
+    a = document.createElement('a');
+    const safeName = `${currentInput.customerName}-${currentInput.trade}-quote-rescue`.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+    a.href = url; a.download = `${safeName || 'quote-rescue-plan'}.txt`;
     document.body.appendChild(a);
     a.click();
     showToast('Plan downloaded');
   } catch {
     showToast('Download failed');
   } finally {
-    a.remove();
-    URL.revokeObjectURL(url);
+    if (a) a.remove();
+    if (url) URL.revokeObjectURL(url);
   }
 }
 
@@ -297,6 +318,7 @@ form.addEventListener('submit', (event) => {
   else renderPlan(currentInput,currentPlan);
 });
 
+window.addEventListener('pageshow', (event) => { if (event.persisted) markPlanStale(); });
 document.querySelector('#load-example').addEventListener('click', () => { setFormValues(example); clearErrors(); markPlanStale(); showToast('Example loaded'); });
 document.addEventListener('click', (event) => { const button = event.target instanceof Element ? event.target.closest('[data-copy]') : null; if (button && !button.disabled) copyText(copyForKey(button.dataset.copy)); });
 document.querySelector('#download-plan').addEventListener('click', downloadText);
