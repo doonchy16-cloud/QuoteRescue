@@ -19,8 +19,10 @@ export const LIMITS = Object.freeze({
   lastContactAgeDays: 3650
 });
 
+const FORMAT_CONTROLS = /[\u200B-\u200F\u202A-\u202E\u2060\u2066-\u2069\uFEFF]/g;
+
 function stripControls(value, allowNewlines = true) {
-  const text = String(value ?? '');
+  const text = String(value ?? '').replace(FORMAT_CONTROLS, '');
   const pattern = allowNewlines ? /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g : /[\u0000-\u001F\u007F]/g;
   return text.replace(pattern, '');
 }
@@ -30,11 +32,16 @@ export function sanitizeText(value) {
 }
 
 export function sanitizeSingleLine(value) {
-  return stripControls(value, false).replace(/[\r\n\t]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  const spaced = String(value ?? '').replace(/[\r\n\t]+/g, ' ');
+  return stripControls(spaced, false).replace(/\s{2,}/g, ' ').trim();
 }
 
 function validateText(raw, key, { required = false, singleLine = false } = {}, errors = {}) {
   const max = LIMITS[key];
+  if (raw !== undefined && raw !== null && typeof raw !== 'string') {
+    errors[key] = `${labelFor(key)} must be text.`;
+    return '';
+  }
   const text = singleLine ? sanitizeSingleLine(raw) : sanitizeText(raw);
   if (required && !text) errors[key] = `${labelFor(key)} is required.`;
   if (text.length > max) errors[key] = `${labelFor(key)} must be ${max} characters or fewer.`;
@@ -53,6 +60,10 @@ function numberLabel(key) {
 }
 
 function parseDecimal(raw, key, { optional = false, emptyValue = 0, min = 0, max = Number.MAX_SAFE_INTEGER, integer = false } = {}, errors = {}) {
+  if (raw !== undefined && raw !== null && typeof raw !== 'string' && typeof raw !== 'number') {
+    errors[key] = `${numberLabel(key)} must be a decimal number.`;
+    return emptyValue;
+  }
   const text = String(raw ?? '').trim();
   if (text === '') {
     if (optional) return emptyValue;
@@ -62,25 +73,29 @@ function parseDecimal(raw, key, { optional = false, emptyValue = 0, min = 0, max
   const grammar = integer ? /^(?:0|[1-9]\d*)$/ : /^(?:0|[1-9]\d*)(?:\.\d+)?$/;
   if (!grammar.test(text)) {
     errors[key] = `${numberLabel(key)} must use decimal numbers only.`;
-    return 0;
+    return emptyValue;
   }
   const number = Number(text);
   if (!Number.isFinite(number)) {
     errors[key] = `${numberLabel(key)} must be a finite number.`;
-    return 0;
+    return emptyValue;
   }
   if (integer && !Number.isInteger(number)) {
     errors[key] = `${numberLabel(key)} must be a whole number.`;
-    return 0;
+    return emptyValue;
   }
   if (number < min || number > max) {
     errors[key] = `${numberLabel(key)} must be between ${min} and ${max}.`;
-    return 0;
+    return emptyValue;
   }
   return number;
 }
 
 function parseEnum(raw, key, allowed, fallback, errors) {
+  if (raw !== undefined && raw !== null && typeof raw !== 'string') {
+    errors[key] = `Choose a valid ${key}.`;
+    return fallback;
+  }
   const value = String(raw ?? fallback).trim();
   if (!allowed.includes(value)) {
     errors[key] = `Choose a valid ${key}.`;
