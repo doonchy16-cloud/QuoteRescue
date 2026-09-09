@@ -56,7 +56,8 @@ function showErrors(errors) {
   }
   errorSummary.innerHTML = `<strong>Fix these fields before generating a plan:</strong><ul>${items.join('')}</ul>`;
   errorSummary.hidden = false;
-  form.elements.namedItem(Object.keys(errors)[0])?.focus();
+  const firstInvalid = Array.from(form.elements).find((field) => field?.name && errors[field.name]);
+  firstInvalid?.focus();
 }
 
 function markPlanStale() {
