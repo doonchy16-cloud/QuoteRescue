@@ -15,13 +15,15 @@ The original V1 passed its happy-path tests but murder testing exposed architect
 - Malformed, negative, non-finite, and out-of-range numbers are rejected rather than silently coerced.
 - Unknown stage/objection/tone/channel values are rejected.
 - Text fields have explicit size limits and control-character cleanup.
+- Optional “days since last contact” is validated and used as a real priority factor instead of guessing recency from prose.
 
 ### Reconciled recovery intelligence
-- Stage, selected objection, and deterministic context cues are reconciled into one derived recovery state.
+- Stage, selected objection, quote age, days since last contact, and deterministic context cues are reconciled into one derived recovery state.
 - The plan exposes contact state, engagement state, primary blocker, recovery mode, confidence, evidence, and any conflicts.
 - `budget_issue + no objection` becomes budget-specific throughout the plan.
 - `financing_issue + no objection` becomes financing-specific throughout the plan.
-- Lost/ghosted and competitor-loss cases cannot be labeled as active/hot follow-up.
+- Lost/ghosted, declined, competitor-loss, and old untouched quotes cannot be labeled as active/hot follow-up.
+- Negated phrases such as “not ready to move forward” and “does not want to proceed” are classified before positive-intent cues.
 
 ### Strategy-safe priority score
 The 0–100 value is a work-priority heuristic, **not** a probability of conversion.
@@ -79,7 +81,7 @@ The test suite includes domain, context, scoring, messages, engine facade, UI so
 
 ## Privacy and responsible use
 
-QuoteRescue V1.1 runs in the browser and does not upload/store entered customer data on a QuoteRescue server. Users remain responsible for contact permissions, opt-outs, applicable law, and reviewing every message before sending. Deterministic phrase detection is conservative and is **not legal advice**.
+QuoteRescue V1.1 runs in the browser and does not upload/store entered customer data on a QuoteRescue server. Users remain responsible for contact permissions, opt-outs, applicable law, and reviewing every message before sending. Ambiguous channel-limited permission is intentionally not modeled in V1.1; QuoteRescue requires either explicit permission, unknown permission, or do-not-contact rather than guessing an allowed channel. Deterministic phrase detection is conservative and is **not legal advice**.
 
 ## Current verification boundary
 

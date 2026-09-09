@@ -1,8 +1,60 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseInput, LIMITS } from '../src/domain.js';
-const base = { customerName:'Alex',repName:'Sam',businessName:'Peak HVAC',callbackPhone:'555-0100',trade:'HVAC',jobDescription:'replace upstairs heat pump',quoteAmount:'8400',quoteAgeDays:'3',stage:'viewed_no_reply',objection:'none',lastContact:'Sent estimate yesterday.',contactPermission:'unknown',tone:'consultative',primaryChannel:'sms' };
-test('rejects negative, malformed, and non-finite quote age instead of coercing to zero',()=>{for(const value of ['-1','abc','Infinity','1.2']){const result=parseInput({...base,quoteAgeDays:value});assert.equal(result.valid,false,value);assert.ok(result.errors.quoteAgeDays,value);}});
-test('rejects non-finite and negative quote amount',()=>{for(const value of ['-1','Infinity','1e999','abc']){const result=parseInput({...base,quoteAmount:value});assert.equal(result.valid,false,value);assert.ok(result.errors.quoteAmount,value);}});
-test('rejects unknown enum values',()=>{const result=parseInput({...base,stage:'HACK_STAGE',objection:'HACK_OBJECTION',tone:'evil',primaryChannel:'fax',contactPermission:'maybe'});assert.equal(result.valid,false);for(const key of ['stage','objection','tone','primaryChannel','contactPermission'])assert.ok(result.errors[key]);});
-test('sanitizes control characters and enforces text length limits',()=>{const ok=parseInput({...base,trade:'HVAC\nBCC: bad',customerName:'Al\u0000ex'});assert.equal(ok.valid,true);assert.equal(ok.value.trade.includes('\n'),false);assert.equal(ok.value.customerName.includes('\u0000'),false);const tooLong=parseInput({...base,jobDescription:'x'.repeat(LIMITS.jobDescription+1)});assert.equal(tooLong.valid,false);assert.ok(tooLong.errors.jobDescription);});
+
+const base = {
+  customerName: 'Alex', repName: 'Sam', businessName: 'Peak HVAC', callbackPhone: '555-0100',
+  trade: 'HVAC', jobDescription: 'replace upstairs heat pump', quoteAmount: '8400', quoteAgeDays: '3',
+  stage: 'viewed_no_reply', objection: 'none', lastContact: 'Sent estimate yesterday.',
+  contactPermission: 'unknown', tone: 'consultative', primaryChannel: 'sms'
+};
+
+test('rejects negative, malformed, and non-finite quote age instead of coercing to zero', () => {
+  for (const value of ['-1', 'abc', 'Infinity', '1.2']) {
+    const result = parseInput({ ...base, quoteAgeDays: value });
+    assert.equal(result.valid, false, value);
+    assert.ok(result.errors.quoteAgeDays, value);
+  }
+});
+
+test('rejects non-finite and negative quote amount', () => {
+  for (const value of ['-1', 'Infinity', '1e999', 'abc']) {
+    const result = parseInput({ ...base, quoteAmount: value });
+    assert.equal(result.valid, false, value);
+    assert.ok(result.errors.quoteAmount, value);
+  }
+});
+
+test('rejects unknown enum values', () => {
+  const result = parseInput({ ...base, stage: 'HACK_STAGE', objection: 'HACK_OBJECTION', tone: 'evil', primaryChannel: 'fax', contactPermission: 'maybe' });
+  assert.equal(result.valid, false);
+  for (const key of ['stage','objection','tone','primaryChannel','contactPermission']) assert.ok(result.errors[key]);
+});
+
+test('sanitizes control characters and enforces text length limits', () => {
+  const ok = parseInput({ ...base, trade: 'HVAC\nBCC: bad', customerName: 'Al\u0000ex' });
+  assert.equal(ok.valid, true);
+  assert.equal(ok.value.trade.includes('\n'), false);
+  assert.equal(ok.value.customerName.includes('\u0000'), false);
+  const tooLong = parseInput({ ...base, jobDescription: 'x'.repeat(LIMITS.jobDescription + 1) });
+  assert.equal(tooLong.valid, false);
+  assert.ok(tooLong.errors.jobDescription);
+});
+
+test('ambiguous channel-limited permission is rejected until an allowed channel can be represented explicitly', () => {
+  const result = parseInput({ ...base, contactPermission:'limited_channel' });
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.contactPermission);
+});
+
+test('optional days-since-last-contact is validated when supplied', () => {
+  assert.equal(parseInput({ ...base, lastContactAgeDays:'' }).valid, true);
+  for (const value of ['-1','abc','Infinity','1.5']) {
+    const result = parseInput({ ...base, lastContactAgeDays:value });
+    assert.equal(result.valid, false, value);
+    assert.ok(result.errors.lastContactAgeDays, value);
+  }
+  const ok = parseInput({ ...base, lastContactAgeDays:'2' });
+  assert.equal(ok.valid, true);
+  assert.equal(ok.value.lastContactAgeDays, 2);
+});

@@ -1,10 +1,57 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateInput, scoreRecovery, generateRecoveryPlan, formatPlanText } from '../src/engine.js';
-const base={customerName:'Alex',repName:'Sam',businessName:'Peak HVAC',callbackPhone:'555-0100',trade:'HVAC',jobDescription:'replace the upstairs heat pump',quoteAmount:'8400',quoteAgeDays:'3',stage:'viewed_no_reply',objection:'none',lastContact:'Sent estimate yesterday.',contactPermission:'allowed',tone:'consultative',primaryChannel:'sms'};
-test('facade validates raw input without dangerous coercion',()=>{const bad=validateInput({...base,quoteAgeDays:'abc'});assert.equal(bad.valid,false);assert.ok(bad.errors.quoteAgeDays);});
-test('blocked contact yields score zero and no campaign',()=>{const plan=generateRecoveryPlan({...base,lastContact:'Customer said STOP texting me.',contactPermission:'unknown'});assert.equal(plan.blocked,true);assert.equal(plan.score,0);assert.equal(plan.context.recoveryMode,'blocked');assert.equal(plan.campaign.sevenDaySteps.length,0);assert.equal(plan.sms,'');});
-test('scoreRecovery remains a deterministic compatibility facade',()=>{const a=scoreRecovery(base);const b=scoreRecovery(base);assert.deepEqual(a,b);assert.ok(a.score>=1&&a.score<=100);});
-test('budget stage with no selected objection reconciles to budget everywhere',()=>{const plan=generateRecoveryPlan({...base,stage:'budget_issue',objection:'none'});assert.equal(plan.context.primaryBlocker,'budget');assert.match(plan.diagnosis,/budget|scope/i);assert.match(plan.campaign.objectionResponse,/budget|scope|must-haves/i);});
-test('formatPlanText exports blocked plans as a safety record, not outreach copy',()=>{const input={...base,contactPermission:'do_not_contact'};const plan=generateRecoveryPlan(input);const text=formatPlanText(input,plan);assert.match(text,/DO NOT CONTACT|OUTREACH BLOCKED/i);assert.equal(text.includes('7-DAY RECOVERY SEQUENCE'),false);});
-test('formatPlanText exports current recovery plan with separate reactivation section',()=>{const plan=generateRecoveryPlan(base);const text=formatPlanText(base,plan);for(const heading of ['RECOVERY PRIORITY','DIAGNOSIS','NEXT MOVE','7-DAY RECOVERY SEQUENCE','REACTIVATION','SMS','EMAIL','VOICEMAIL'])assert.ok(text.includes(heading),heading);});
+
+const base = {
+  customerName:'Alex', repName:'Sam', businessName:'Peak HVAC', callbackPhone:'555-0100', trade:'HVAC',
+  jobDescription:'replace the upstairs heat pump', quoteAmount:'8400', quoteAgeDays:'3', stage:'viewed_no_reply',
+  objection:'none', lastContact:'Sent estimate yesterday.', contactPermission:'allowed', tone:'consultative', primaryChannel:'sms'
+};
+
+test('facade validates raw input without dangerous coercion', () => {
+  const bad = validateInput({ ...base, quoteAgeDays:'abc' });
+  assert.equal(bad.valid, false);
+  assert.ok(bad.errors.quoteAgeDays);
+});
+
+test('blocked contact yields score zero and no campaign', () => {
+  const plan = generateRecoveryPlan({ ...base, lastContact:'Customer said STOP texting me.', contactPermission:'unknown' });
+  assert.equal(plan.blocked, true);
+  assert.equal(plan.score, 0);
+  assert.equal(plan.context.recoveryMode, 'blocked');
+  assert.equal(plan.campaign.sevenDaySteps.length, 0);
+  assert.equal(plan.sms, '');
+});
+
+test('scoreRecovery remains a deterministic compatibility facade', () => {
+  const a = scoreRecovery(base);
+  const b = scoreRecovery(base);
+  assert.deepEqual(a, b);
+  assert.ok(a.score >= 1 && a.score <= 100);
+});
+
+test('budget stage with no selected objection reconciles to budget everywhere', () => {
+  const plan = generateRecoveryPlan({ ...base, stage:'budget_issue', objection:'none' });
+  assert.equal(plan.context.primaryBlocker, 'budget');
+  assert.match(plan.diagnosis, /budget|scope/i);
+  assert.match(plan.campaign.objectionResponse, /budget|scope|must-haves/i);
+});
+
+test('formatPlanText exports blocked plans as a safety record, not outreach copy', () => {
+  const input = { ...base, contactPermission:'do_not_contact' };
+  const plan = generateRecoveryPlan(input);
+  const text = formatPlanText(input, plan);
+  assert.match(text, /DO NOT CONTACT|OUTREACH BLOCKED/i);
+  assert.equal(text.includes('7-DAY RECOVERY SEQUENCE'), false);
+});
+
+test('formatPlanText exports current recovery plan with separate reactivation section', () => {
+  const plan = generateRecoveryPlan(base);
+  const text = formatPlanText(base, plan);
+  for (const heading of ['RECOVERY PRIORITY','DIAGNOSIS','NEXT MOVE','7-DAY RECOVERY SEQUENCE','REACTIVATION','SMS','EMAIL','VOICEMAIL']) assert.ok(text.includes(heading), heading);
+});
+
+test('same-day prior contact prevents an immediate second follow-up recommendation', () => {
+  const plan = generateRecoveryPlan({ ...base, lastContactAgeDays:'0' });
+  assert.match(plan.nextMove, /do not (?:send|contact|follow up).*today|wait.*today|next appropriate business day/i);
+});

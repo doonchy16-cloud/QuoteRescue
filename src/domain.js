@@ -4,7 +4,7 @@ export const STAGES = Object.freeze([
 export const BLOCKERS = Object.freeze(['none','budget','price','timing','competitor','trust','financing','spouse_partner','not_ready']);
 export const TONES = Object.freeze(['warm','concise','consultative','premium','direct']);
 export const CHANNELS = Object.freeze(['sms','email','phone']);
-export const CONTACT_PERMISSIONS = Object.freeze(['allowed','unknown','limited_channel','do_not_contact']);
+export const CONTACT_PERMISSIONS = Object.freeze(['allowed','unknown','do_not_contact']);
 export const LIMITS = Object.freeze({
   customerName: 60,
   repName: 60,
@@ -14,7 +14,8 @@ export const LIMITS = Object.freeze({
   jobDescription: 600,
   lastContact: 800,
   quoteAmount: 1000000000,
-  quoteAgeDays: 3650
+  quoteAgeDays: 3650,
+  lastContactAgeDays: 3650
 });
 
 function stripControls(value, allowNewlines = true) {
@@ -46,24 +47,28 @@ function labelFor(key) {
   })[key] ?? key;
 }
 
-function parseFinite(raw, key, { optional = false, min = 0, max = Number.MAX_SAFE_INTEGER, integer = false } = {}, errors = {}) {
+function numberLabel(key) {
+  return ({ quoteAgeDays:'Quote age', quoteAmount:'Quote amount', lastContactAgeDays:'Days since last contact' })[key] ?? key;
+}
+
+function parseFinite(raw, key, { optional = false, emptyValue = 0, min = 0, max = Number.MAX_SAFE_INTEGER, integer = false } = {}, errors = {}) {
   const text = String(raw ?? '').trim();
   if (text === '') {
-    if (optional) return 0;
-    errors[key] = `${key === 'quoteAgeDays' ? 'Quote age' : 'Quote amount'} is required.`;
+    if (optional) return emptyValue;
+    errors[key] = `${numberLabel(key)} is required.`;
     return 0;
   }
   const number = Number(text);
   if (!Number.isFinite(number)) {
-    errors[key] = `${key === 'quoteAgeDays' ? 'Quote age' : 'Quote amount'} must be a finite number.`;
+    errors[key] = `${numberLabel(key)} must be a finite number.`;
     return 0;
   }
   if (integer && !Number.isInteger(number)) {
-    errors[key] = `${key === 'quoteAgeDays' ? 'Quote age' : 'Quote amount'} must be a whole number.`;
+    errors[key] = `${numberLabel(key)} must be a whole number.`;
     return 0;
   }
   if (number < min || number > max) {
-    errors[key] = `${key === 'quoteAgeDays' ? 'Quote age' : 'Quote amount'} must be between ${min} and ${max}.`;
+    errors[key] = `${numberLabel(key)} must be between ${min} and ${max}.`;
     return 0;
   }
   return number;
@@ -89,6 +94,7 @@ export function parseInput(raw = {}) {
     jobDescription: validateText(raw.jobDescription, 'jobDescription', { required:true }, errors),
     quoteAmount: parseFinite(raw.quoteAmount, 'quoteAmount', { optional:true, min:0, max:LIMITS.quoteAmount }, errors),
     quoteAgeDays: parseFinite(raw.quoteAgeDays, 'quoteAgeDays', { optional:false, min:0, max:LIMITS.quoteAgeDays, integer:true }, errors),
+    lastContactAgeDays: parseFinite(raw.lastContactAgeDays, 'lastContactAgeDays', { optional:true, emptyValue:null, min:0, max:LIMITS.lastContactAgeDays, integer:true }, errors),
     stage: parseEnum(raw.stage, 'stage', STAGES, 'estimate_sent', errors),
     objection: parseEnum(raw.objection, 'objection', BLOCKERS, 'none', errors),
     lastContact: validateText(raw.lastContact, 'lastContact', {}, errors),

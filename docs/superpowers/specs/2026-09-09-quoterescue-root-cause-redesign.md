@@ -1,202 +1,138 @@
 # QuoteRescue Root-Cause Redesign
 
 ## Goal
-Redesign QuoteRescue V1 so its paid value comes from reliable recovery judgment, safe contact decisions, coherent strategy, and genuinely send-ready channel-specific copy—not from shallow field substitution.
+Redesign QuoteRescue so paid value comes from reliable recovery judgment, safe contact decisions, coherent strategy, and genuinely usable channel-specific copy—not shallow field substitution.
 
 ## Root causes
-The murder test exposed architectural, not cosmetic, defects:
+Murder testing showed architectural defects: safety state was implicit; normalization erased invalid data; stage/objection/context were fragmented; campaign generation was monolithic; UI result state could become stale without saying so; and the old score implied more precision than the model supported.
 
-1. **Safety state was implicit.** `lastContact` was treated only as blank/nonblank, so explicit opt-outs, legal no-contact requests, competitor loss, and positive intent all collapsed to the same +4 context bonus.
-2. **Normalization erased invalid data.** Invalid/negative/non-finite numeric inputs were silently coerced to plausible values before validation.
-3. **Business state was fragmented.** Stage and objection were scored independently without reconciliation, producing contradictory diagnosis, score band, and message strategy.
-4. **Campaign generation was monolithic.** Tone mostly changed the opener; channel-specific requirements, message-length budgets, contact sequence structure, and representative identity were not first-class concepts.
-5. **UI state was one-way.** Once a plan was generated, edits did not mark it stale and invalid resubmission could leave an old plan visible.
-6. **The old score implied precision unsupported by the model.** The score mixed simple heuristics with labels such as “Hot recovery,” even when the strategic state was reactivation or closure.
+## Governing pipeline
 
-## Redesign principles
+`raw input -> validate/sanitize -> contact-permission gate -> derive/reconcile recovery context -> score work priority -> build diagnosis/next move -> build channel/tone campaign -> truthful UI state`
 
-### 1. Parse first, then normalize safely
-Raw values must be validated before coercion can change meaning. Numeric fields must reject non-finite, negative, malformed, or out-of-range values. Enum fields must reject unknown values. Text fields must be trimmed, control characters removed, and bounded by explicit maximum lengths.
+No later layer may bypass an earlier safety decision.
 
-### 2. Contact permission is a hard gate
-Contactability is evaluated before recovery strategy or score generation.
+## Domain contract
 
-Contact states:
+### Valid contact states
 - `allowed`
-- `limited_channel`
-- `do_not_contact`
 - `unknown`
+- `do_not_contact`
 
-Hard-block signals include explicit opt-out language such as “stop texting,” “do not contact,” “unsubscribe,” “never contact,” legal no-contact instructions, or equivalent phrases. A blocked plan must produce no outbound sequence and must state that outreach is blocked until permission is restored outside QuoteRescue.
+`limited_channel` is intentionally **not modeled in V1.1**. The product cannot safely represent “allowed by only one channel” without also representing which channel is allowed. It must reject that ambiguous state rather than guess.
 
-V1 does not attempt legal interpretation. It uses conservative deterministic phrase matching plus explicit structured input.
+### Numeric validation
+Quote amount, quote age, and optional days since last contact must reject malformed, negative, non-finite, fractional-when-integer-required, and out-of-range values. Validation happens before normalization can change meaning.
 
-### 3. Separate observed context from inferred recovery state
-The engine derives a `RecoveryContext` from structured inputs and deterministic text cues.
+### Text limits
+Customer/representative/business/trade/project/contact fields have explicit bounds; control characters are removed and single-line fields cannot inject newlines into generated subjects or headers.
 
-Derived context fields:
+## Contact-permission gate
+Contactability is evaluated before recovery strategy or scoring. Structured `do_not_contact` and conservative deterministic opt-out/no-contact cues hard-block outreach. A blocked plan has score 0, recovery mode `blocked`, no campaign, no reactivation copy, and no copy/downloadable outreach result.
+
+The phrase matcher is conservative and deterministic, not a legal interpretation engine.
+
+## Recovery context
+The engine derives:
 - `contactState`
-- `engagementState`: `positive`, `neutral`, `unresponsive`, `negative`, `lost`, `unknown`
-- `primaryBlocker`: `none`, `budget`, `price`, `timing`, `competitor`, `trust`, `financing`, `partner_approval`, `not_ready`, `unknown`
-- `recoveryMode`: `active_followup`, `objection_resolution`, `nurture`, `reactivation`, `close_loop`, `blocked`
-- `confidence`: `high`, `medium`, `low`
-- `evidence`: deterministic explanation strings
+- `engagementState`: positive, neutral, unresponsive, negative, lost, unknown
+- `primaryBlocker`: none, budget, price, timing, competitor, trust, financing, spouse_partner, not_ready, unknown
+- `recoveryMode`: active_followup, objection_resolution, nurture, reactivation, close_loop, blocked
+- `confidence`: high, medium, low
+- `evidence[]`
+- `conflicts[]`
 
-Structured stage/objection selections remain authoritative when present; text cues can strengthen, downgrade, or block, but cannot silently contradict an explicit structured choice without surfacing the conflict.
+Structured stage/objection choices remain authoritative when present. Deterministic text cues can strengthen, downgrade, close, reactivate, or block, but contradictions must be surfaced instead of silently producing multiple incompatible strategies.
 
-### 4. Reconcile stage and objection before scoring
-The engine must use a single derived `recoveryMode` and `primaryBlocker` before calculating priority. Contradictory inputs must create a visible reconciliation note rather than two independent strategies.
+### Cue precedence
+Negative/final cues must be evaluated before positive-intent cues. At minimum:
+1. explicit no-contact / opt-out
+2. competitor loss
+3. explicit decline / not interested / does not want to proceed
+4. not-ready / on-hold timing
+5. budget
+6. financing
+7. trust/uncertainty
+8. spouse/partner approval
+9. timing
+10. positive intent
+
+This prevents phrases such as “not ready to move forward” from being misread as positive intent.
+
+### Recency
+Optional `lastContactAgeDays` is a structured factor. Same-day contact lowers priority and the orchestrator must explicitly advise **not to send another follow-up today**. Unknown recency is not treated as recent contact.
+
+Quote age >45 days with no positive engagement and no stronger structured recovery mode becomes `reactivation`, not active follow-up.
+
+## Reconciliation
+Stage, selected objection, text cues, quote age, and contact recency are reconciled into one recovery mode and one primary blocker before scoring or message generation.
 
 Examples:
-- `budget_issue + none` => `primaryBlocker=budget`
-- `financing_issue + none` => `primaryBlocker=financing`
-- `lost_ghosted + fresh age` => `recoveryMode=close_loop` or `reactivation`, never “strong follow-up”
-- `considering_competitor + none` => `primaryBlocker=competitor`
+- `budget_issue + none` => blocker `budget`
+- `financing_issue + none` => blocker `financing`
+- `considering_competitor + none` => blocker `competitor`
+- declined/competitor-loss context => `close_loop`
+- old untouched quote => `reactivation`
+- explicit selected blocker conflicting with text cue => selected blocker remains authoritative and a conflict is shown
 
-### 5. Replace “hotness” with recovery priority
-The 0–100 value is retained as an explainable work-priority score, but bands become strategy-safe:
-- 75–100: `Priority follow-up`
-- 55–74: `Active recovery`
-- 35–54: `Nurture / resolve blocker`
-- 1–34: `Reactivation / close loop`
-- 0: `Do not contact`
+`close_loop`, `reactivation`, and `blocked` strategy modes override blocker-specific diagnosis copy; the product must not tell a user both “close this” and “actively resolve budget” as simultaneous next moves.
 
-The score must never override a blocking contact state.
+## Priority score
+The 0–100 value is a deterministic **work-priority heuristic**, not conversion probability.
 
-### 6. Make last-contact meaning real
-Deterministic phrase classes must identify at minimum:
-- explicit opt-out / no-contact
-- hired/selected competitor
-- positive intent / wants to proceed
-- delayed/not-ready language
-- budget/price concern
-- financing concern
-- trust/uncertainty concern
-- spouse/partner approval
+Bands:
+- 75–100: Priority follow-up
+- 55–74: Active recovery
+- 35–54: Nurture / resolve blocker
+- 1–34: Reactivation / close loop
+- 0: Do not contact
 
-The text parser must expose matched cues in evidence. It must not pretend semantic certainty; unmatched text remains neutral/unknown.
+Factors include contact permission, quote age, optional contact recency, engagement, primary blocker, and quote value. Unknown permission lowers priority relative to explicitly allowed contact. Strategy-mode caps ensure close-loop/reactivation cannot receive an active-priority label.
 
-### 7. Build campaigns from channel strategy
+## Campaign generation
 Campaign generation is separate from diagnosis/scoring.
 
-Each `CampaignPlan` contains:
-- `mode`
-- `primaryChannel`
-- `messages[]`
-- `reactivation`
-- `objectionResponse`
-- `closeLoop`
+Requirements:
+- Phone Day 0 contains voicemail **and** follow-up SMS.
+- Email Day 0 contains subject **and** body.
+- SMS Day 0 contains SMS only.
+- 30+ day reactivation is separate from the 7-day cadence.
+- Tone affects CTA/formality/close language across multiple steps, not just the opener.
+- SMS is bounded to 320 characters.
+- Email subject is single-line and <=90 characters.
+- Long project text is represented by a bounded project reference.
+- Representative identity removes `[Your Name]` placeholders.
+- Generated campaign copy must not invent scarcity, guarantees, availability, urgency, or discount language not supplied by the contractor.
 
-The Day 0 step must contain everything its action label promises.
-- Phone: voicemail + follow-up SMS as separate copy fields in the same step.
-- Email: subject + body together.
-- SMS: SMS only.
+## UI truthfulness
+States are explicit: `empty`, `current`, `stale`, `invalid`, `blocked`.
 
-The 30+ day reactivation item is not part of the “7-day cadence.” It is rendered separately.
+After generation, any form edit marks results stale and disables copy/download. An invalid resubmit cannot leave the old plan appearing current. Blocked plans render a dedicated stop state and disable outreach export. Clipboard success is reported only after a successful copy operation.
 
-### 8. Enforce message budgets
-Recommended soft limits:
-- SMS target <= 320 chars, prefer <= 240
-- Voicemail target <= 650 chars
-- Email subject <= 90 chars and single-line only
-- Email body target <= 1,500 chars
+## Accessibility
+Field errors use `aria-invalid`; descriptions connect through `aria-describedby`; an error summary is announced; status changes use live regions; reduced-motion users do not receive forced smooth scrolling.
 
-If user input is long, messages use a bounded short project reference rather than embedding the full raw description.
-
-### 9. Make tone systemic
-Tone must alter not only the opener but CTA style, sentence length, formality, and close-loop language across the campaign. Five tones remain: warm, concise, consultative, premium, direct.
-
-### 10. Make outputs send-ready
-Add:
-- representative first name
-- business name (optional)
-- callback phone (optional)
-
-Generated voicemail must never contain `[Your Name]`.
-
-### 11. UI state must be truthful
-After a plan is generated:
-- any form edit marks the plan `stale`
-- stale output remains visible but clearly disabled/labeled until regenerated
-- an invalid resubmit must not present old output as current
-- copy/download actions must be disabled while stale or invalid
-- clipboard success is shown only when copy succeeds
-
-### 12. Accessibility
-- field errors use `aria-invalid=true`
-- error text is connected through `aria-describedby`
-- an error summary is announced
-- reduced-motion users do not receive forced smooth scroll
-- status changes use polite live regions
-
-## Proposed module boundaries
-
-### `src/domain.js`
-Enums, constraints, safe raw parsing, validation, text sanitization.
-
-### `src/context.js`
-Contact-permission detection, last-contact cue classification, stage/objection reconciliation, derived recovery state.
-
-### `src/scoring.js`
-Strategy-safe priority scoring and factor explanations. Does not generate copy.
-
-### `src/messages.js`
-Tone profiles, channel-specific message building, bounded project references, subject sanitization, length budgets.
-
-### `src/engine.js`
-Facade only: validate -> derive context -> block if needed -> score -> build campaign -> return unified plan.
-
-### `src/app.js`
-UI state machine, rendering, stale/invalid handling, clipboard/download behavior.
-
-## Unified plan shape
-
-```js
-{
-  input,
-  context: {
-    contactState,
-    engagementState,
-    primaryBlocker,
-    recoveryMode,
-    confidence,
-    evidence,
-    conflicts
-  },
-  priority: {
-    score,
-    band,
-    factors
-  },
-  diagnosis,
-  nextMove,
-  campaign: {
-    sevenDaySteps,
-    reactivation,
-    objectionResponse,
-    closeLoop
-  },
-  blocked,
-  blockedReason
-}
-```
+## Module boundaries
+- `src/domain.js`: contracts, sanitization, parsing, validation
+- `src/context.js`: permission gate, cue classification, reconciliation
+- `src/scoring.js`: strategy-safe work-priority scoring
+- `src/messages.js`: diagnosis plus channel/tone campaign generation
+- `src/engine.js`: facade/orchestration/export; applies same-day timing guard
+- `src/app.js`: UI state machine/rendering/copy/download
 
 ## Acceptance criteria
-- Explicit no-contact language always yields score 0, mode `blocked`, no outbound campaign, and no copy/downloadable outreach plan.
-- Invalid numeric input is rejected rather than silently normalized.
-- Unknown enum values are rejected.
-- Stage/objection contradictions are reconciled deterministically and explained.
-- `budget_issue + none` produces budget-specific diagnosis and copy.
-- `financing_issue + none` produces financing-specific diagnosis and copy.
-- `lost_ghosted` never receives a priority band implying active/hot follow-up.
-- Last-contact cue classes materially alter derived context where deterministic evidence exists.
-- Phone Day 0 contains voicemail and SMS.
-- Email Day 0 contains subject and body.
-- 30+ day reactivation is separate from the 7-day cadence.
-- Generated SMS remains within the configured maximum for all supported stages, blockers, and tones using maximum allowed input lengths.
-- No generated message invents discounts, scarcity, guarantees, availability, or actions not supplied by the user.
-- No `[Your Name]` placeholder appears when valid representative identity is supplied.
-- Any form change after generation marks results stale and disables copy/download until regeneration.
-- Error states do not leave an old plan appearing current.
-- Existing XSS escaping remains intact.
-- Automated tests cover normal, boundary, contradictory, and safety cases.
+- Explicit no-contact always => score 0 + blocked + no outbound copy.
+- Invalid numbers/enums are rejected, never silently coerced.
+- Ambiguous channel-limited permission is rejected.
+- Negative/declined phrases cannot be classified as positive intent.
+- Stage/objection contradictions reconcile deterministically and are explained.
+- Budget/financing implied by stage are reflected throughout diagnosis and copy.
+- Lost/declined/competitor-loss/old untouched opportunities cannot receive active follow-up strategy labels.
+- Same-day prior contact produces an explicit “do not send another follow-up today” next move.
+- Unknown permission lowers priority versus explicit allowed permission.
+- Phone/email Day 0 include all copy their labels promise.
+- Reactivation is separate from the 7-day cadence.
+- Every supported stage × blocker × tone × channel combination remains within message budgets and forbidden-claim rules.
+- Campaign output contains no `[Your Name]`, fake scarcity, guarantees, or discount language.
+- Stale/invalid/blocked UI states cannot copy/download an outreach plan as current.
+- Automated tests cover normal, boundary, contradiction, safety, and adversarial matrix cases.
