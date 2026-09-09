@@ -1,15 +1,15 @@
 import { CHANNELS } from './domain.js';
 
 const BROAD_STOP = [
-  /^\s*stop[.!\s]*$/i,
-  /\bplease\s+stop\b/i,
+  /^\s*stop[.!?\s]*$/i,
+  /^\s*please\s+stop[.!?\s]*$/i,
   /\bstop\s+(?:reaching\s+out|contacting|messaging)\b/i,
   /\bdo\s+not\s+(?:contact|reach\s+out|message)\b/i,
   /\bdon['’]?t\s+(?:contact|reach\s+out|message)\b/i,
   /\bnever\s+(?:contact|reach\s+out|message)\b/i,
   /\bno\s+more\s+(?:messages|contact)\b/i,
   /\bleave\s+me\s+alone\b/i,
-  /\b(?:take|remove)\s+me\s+off\b/i,
+  /\b(?:take|remove)\s+me\s+off\s+(?:your\s+)?(?:list|marketing)\b/i,
   /\bremove\s+me\s+from\s+(?:your\s+)?(?:list|marketing)\b/i,
   /\bremove\s+my\s+(?:number|phone)\b/i,
   /\bdelete\s+my\s+(?:number|phone)\b/i,
@@ -17,13 +17,18 @@ const BROAD_STOP = [
   /\brevoke\s+consent\b/i,
   /\bcease\s+(?:contact|communications?)\b/i,
   /\bunsubscribe\b/i,
-  /\bwrong\s+number\b/i,
   /\bnot\s+\w+\s*;?\s*do\s+not\s+contact\s+this\s+number\b/i
+];
+
+const WRONG_RECIPIENT = [
+  /^\s*(?:this\s+is\s+)?(?:the\s+)?wrong\s+number(?:\s*[—-]\s*(?:remove\s+me|stop(?:\s+contacting\s+me)?|do\s+not\s+contact.*))?[.!?\s]*$/i,
+  /^\s*you(?:'ve|\s+have)?\s+(?:got\s+)?the\s+wrong\s+number[.!?\s]*$/i,
+  /\bi\s+am\s+not\s+[^.;]+\s*;?\s*do\s+not\s+contact\s+this\s+number\b/i
 ];
 
 const DENY = Object.freeze({
   sms:[/\bdo\s+not\s+text(?:\s+me)?\b/i,/\bdon['’]?t\s+text(?:\s+me)?\b/i,/\bnever\s+text(?:\s+me)?\b/i,/\bno\s+(?:more\s+)?texts?(?:\s+please)?\b/i,/\bquit\s+texting(?:\s+me)?\b/i,/\bstop\s+texting(?:\s+me)?\b/i],
-  phone:[/\bdo\s+not\s+call(?:\s+me)?\b/i,/\bdon['’]?t\s+call(?:\s+me)?\b/i,/\bnever\s+call(?:\s+me)?\b/i,/\bno\s+(?:more\s+)?calls?(?:\s+please)?\b/i,/\bquit\s+calling(?:\s+me)?\b/i,/\bstop\s+calling(?:\s+me)?\b/i],
+  phone:[/\bdo\s+not\s+call(?:\s+me)?\b/i,/\bdon['’]?t\s+call(?:\s+me)?\b/i,/\bnever\s+call(?:\s+me)?\b/i,/\bno\s+(?:more\s+)?calls?(?:\s+please)?\b/i,/\bquit\s+calling(?:\s+me)?\b/i,/\bstop\s+calling(?:\s+me)?\b/i,/\b(?:take|remove)\s+me\s+(?:off|from)\s+(?:the\s+)?call\s+list\b/i],
   email:[/\bdo\s+not\s+email(?:\s+me)?\b/i,/\bdon['’]?t\s+email(?:\s+me)?\b/i,/\bnever\s+email(?:\s+me)?\b/i,/\bno\s+(?:more\s+)?emails?(?:\s+please)?\b/i,/\bstop\s+emailing(?:\s+me)?\b/i]
 });
 
@@ -63,12 +68,11 @@ export function deriveContactPolicy(input={}){
   for(const channel of explicitAllowed){if(channels[channel]==='denied')conflicts.push(`Structured ${channel} permission says denied, while last-contact text allows ${channel}; denial wins.`);else channels[channel]='allowed';evidence.push(`Last-contact text explicitly allows ${channel}.`);}
 
   const broadStop=anyMatch(BROAD_STOP,text);
-  const channelDenyWithoutAlternative=explicitDenied.size>0&&explicitAllowed.size===0;
-  const wrongRecipient=/\bwrong\s+number\b/i.test(text)||/\bi\s+am\s+not\s+[^.;]+\b.*\bdo\s+not\s+contact\s+this\s+number\b/i.test(text);
-  const hardBlocked=input.contactPermission==='do_not_contact'||broadStop||wrongRecipient||channelDenyWithoutAlternative;
+  const wrongRecipient=anyMatch(WRONG_RECIPIENT,text);
+  const hardBlocked=input.contactPermission==='do_not_contact'||broadStop||wrongRecipient;
 
   if(hardBlocked){
-    if(input.contactPermission==='allowed'&&(broadStop||wrongRecipient||channelDenyWithoutAlternative))conflicts.push('Structured permission says allowed, but current text contains a stronger stop-contact signal; stop-contact wins.');
+    if(input.contactPermission==='allowed'&&(broadStop||wrongRecipient))conflicts.push('Structured permission says allowed, but current text contains a stronger stop-contact signal; stop-contact wins.');
     for(const channel of CHANNELS)channels[channel]='denied';
     return{globalState:'do_not_contact',channels,evidence:[...evidence,'Current contact evidence requires outreach to stop.'],conflicts,blocked:true,blockedReason:'Current contact evidence indicates this customer/number should not receive QuoteRescue outreach.'};
   }
