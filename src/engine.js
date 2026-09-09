@@ -66,7 +66,8 @@ function renderStep(step) {
 export function formatPlanText(raw = {}, suppliedPlan = null) {
   const plan = suppliedPlan ?? generateRecoveryPlan(raw);
   const input = plan.input ?? requireValid(raw);
-  const amount = input.quoteAmount ? `$${formatCurrencyAmount(input.quoteAmount)}` : 'Not supplied';
+  const hasQuoteAmount = input.quoteAmount !== null && input.quoteAmount !== undefined;
+  const amount = hasQuoteAmount ? `$${formatCurrencyAmount(input.quoteAmount)}` : 'Not supplied';
   const evidence = plan.context.evidence.length ? plan.context.evidence.map((item) => `- ${item}`).join('\n') : '- No deterministic context cue matched.';
   const conflicts = plan.context.conflicts.length ? `\n\nCONTEXT CONFLICTS\n${plan.context.conflicts.map((item) => `- ${item}`).join('\n')}` : '';
   const channelPolicy = plan.context.channelPolicy?.channels ?? {};
