@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="QuoteRescue turns stale contractor estimates into safe, prioritized recovery plans with channel-specific follow-up copy." />
+  <meta name="description" content="QuoteRescue turns stale contractor estimates into safe, prioritized recovery plans with contact-policy-aware follow-up copy." />
   <title>QuoteRescue — Recover the quotes you already earned</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <header class="topbar shell">
     <a class="brand" href="#top" aria-label="QuoteRescue home"><span class="brand-mark" aria-hidden="true">QR</span><span>QuoteRescue</span></a>
-    <span class="privacy-pill">🔒 Browser-only V1</span>
+    <span class="privacy-pill">🔒 Browser-only V2</span>
   </header>
 
   <main id="top">
@@ -18,13 +18,13 @@
       <div>
         <p class="eyebrow">ESTIMATE RECOVERY WORKBENCH</p>
         <h1>Recover the quote without guessing—or over-chasing.</h1>
-        <p class="lede">QuoteRescue checks contact permission first, reconciles what actually happened, prioritizes the opportunity, and builds a channel-specific recovery campaign you can review before sending.</p>
-        <div class="hero-points"><span>🛡️ Permission gate first</span><span>🎯 Explainable priority</span><span>💬 Channel-specific</span><span>🧠 Context-aware</span></div>
+        <p class="lede">QuoteRescue resolves contact policy first, interprets what actually happened, prioritizes the opportunity, and builds a recovery plan that respects the customer’s permitted channels.</p>
+        <div class="hero-points"><span>🛡️ Channel policy first</span><span>🎯 Explainable priority</span><span>💬 Permission-aware copy</span><span>🧠 Polarity + context</span></div>
       </div>
       <aside class="hero-card">
         <p class="mini-label">PAID-VALUE PROMISE</p>
         <strong class="hero-number">Decision aid + send-ready toolkit</strong>
-        <p>Not an auto-sender. Not a conversion prediction. QuoteRescue helps you decide whether to follow up, how to follow up, and when to stop.</p>
+        <p>Not an auto-sender. Not a conversion prediction. QuoteRescue helps you decide whether to follow up, which channel is usable, what to say, and when to stop.</p>
       </aside>
     </section>
 
@@ -109,15 +109,43 @@
             </label>
           </div>
 
-          <label>Contact permission / opt-out status
+          <label>Global contact permission / opt-out status
             <select name="contactPermission" aria-describedby="contact-help error-contactPermission">
               <option value="unknown" selected>Unknown / not explicitly recorded</option>
               <option value="allowed">Allowed to contact</option>
               <option value="do_not_contact">Do not contact / opted out</option>
             </select>
-            <small id="contact-help" class="field-help">If you know the customer opted out, choose “Do not contact.” QuoteRescue also checks the context text for explicit no-contact language.</small>
+            <small id="contact-help" class="field-help">Global “Allowed” applies unless a channel below is denied. Explicit opt-out/no-contact evidence overrides any allowed selection.</small>
             <small id="error-contactPermission" class="field-error" data-error="contactPermission"></small>
           </label>
+
+          <div class="channel-permission-box" aria-labelledby="channel-permission-title">
+            <div class="permission-heading">
+              <div><span class="mini-label" id="channel-permission-title">CHANNEL POLICY</span><strong>Record what you actually know</strong></div>
+              <span class="permission-note">Unknown ≠ denied</span>
+            </div>
+            <div class="grid three permission-grid">
+              <label>SMS / text
+                <select name="smsPermission" aria-describedby="error-smsPermission">
+                  <option value="unknown" selected>Unknown</option><option value="allowed">Allowed</option><option value="denied">Denied</option>
+                </select>
+                <small id="error-smsPermission" class="field-error" data-error="smsPermission"></small>
+              </label>
+              <label>Phone / voicemail
+                <select name="phonePermission" aria-describedby="error-phonePermission">
+                  <option value="unknown" selected>Unknown</option><option value="allowed">Allowed</option><option value="denied">Denied</option>
+                </select>
+                <small id="error-phonePermission" class="field-error" data-error="phonePermission"></small>
+              </label>
+              <label>Email
+                <select name="emailPermission" aria-describedby="error-emailPermission">
+                  <option value="unknown" selected>Unknown</option><option value="allowed">Allowed</option><option value="denied">Denied</option>
+                </select>
+                <small id="error-emailPermission" class="field-error" data-error="emailPermission"></small>
+              </label>
+            </div>
+            <p class="field-help">QuoteRescue can also detect statements like “text only,” “don’t call; text is fine,” and explicit stop-contact language in the context below. A denial always wins over a conflicting allowed signal.</p>
+          </div>
 
           <div class="grid two">
             <label>Days since last contact <span class="optional">optional</span>
@@ -138,22 +166,23 @@
               <select name="tone" aria-describedby="error-tone"><option value="consultative" selected>Consultative</option><option value="warm">Warm</option><option value="concise">Concise</option><option value="premium">Premium</option><option value="direct">Direct</option></select>
               <small id="error-tone" class="field-error" data-error="tone"></small>
             </label>
-            <label>Primary channel
-              <select name="primaryChannel" aria-describedby="error-primaryChannel"><option value="sms" selected>SMS / text</option><option value="email">Email</option><option value="phone">Phone / voicemail</option></select>
+            <label>Preferred channel
+              <select name="primaryChannel" aria-describedby="primary-channel-help error-primaryChannel"><option value="sms" selected>SMS / text</option><option value="email">Email</option><option value="phone">Phone / voicemail</option></select>
+              <small id="primary-channel-help" class="field-help">If this channel is denied, QuoteRescue switches only to an explicitly allowed alternative. Otherwise it places the plan on send hold.</small>
               <small id="error-primaryChannel" class="field-error" data-error="primaryChannel"></small>
             </label>
           </div>
         </fieldset>
 
         <button class="primary-button" type="submit"><span>Analyze + build recovery plan</span><span aria-hidden="true">→</span></button>
-        <p class="form-note">No customer data is uploaded or stored by QuoteRescue V1.</p>
+        <p class="form-note">No customer data is uploaded or stored by QuoteRescue V2.</p>
       </form>
 
       <section class="panel output" aria-live="polite">
         <div id="empty-state" class="empty-state">
           <div class="empty-icon" aria-hidden="true">↗</div><p class="step-label">STEP 2</p><h2>Your decision + campaign appears here</h2>
-          <p>QuoteRescue will first decide whether outreach is allowed, then reconcile the recovery state before generating messages.</p>
-          <ul><li>Permission / opt-out gate</li><li>Recovery mode + blocker reconciliation</li><li>Priority score + evidence</li><li>7-day campaign + separate reactivation</li></ul>
+          <p>QuoteRescue resolves contact and channel policy before interpreting the recovery state or generating any outreach copy.</p>
+          <ul><li>Global + per-channel permission policy</li><li>Current-vs-past context resolution</li><li>Recovery mode + priority evidence</li><li>Mode-specific cadence + reactivation playbook</li></ul>
         </div>
 
         <div id="results" class="results" hidden>
@@ -170,7 +199,20 @@
             <div><p class="mini-label danger-label">OUTREACH BLOCKED</p><h3>Do not send a recovery campaign.</h3><p id="blocked-reason"></p><p id="blocked-next"></p></div>
           </section>
 
+          <section id="send-hold-state" class="send-hold-card" hidden>
+            <div class="hold-icon" aria-hidden="true">⚠️</div>
+            <div><p class="mini-label hold-label">SEND HOLD</p><h3>No verified usable channel for this plan.</h3><p id="send-hold-reason"></p><p id="send-hold-next"></p></div>
+          </section>
+
           <div id="current-plan-content">
+            <article id="channel-policy-summary" class="channel-policy-summary" aria-label="Resolved contact channel policy">
+              <div><span class="mini-label">SMS</span><strong id="policy-sms">—</strong></div>
+              <div><span class="mini-label">PHONE</span><strong id="policy-phone">—</strong></div>
+              <div><span class="mini-label">EMAIL</span><strong id="policy-email">—</strong></div>
+              <div class="policy-effective"><span class="mini-label">EFFECTIVE CHANNEL</span><strong id="effective-channel">—</strong></div>
+              <div class="policy-effective"><span class="mini-label">SEND STATE</span><strong id="send-state">—</strong></div>
+            </article>
+
             <div class="score-card">
               <div class="score-ring" id="score-ring" aria-label="Recovery priority"><strong id="score-value">0</strong><span>/100</span></div>
               <div><p class="mini-label">RECOVERY PRIORITY</p><h3 id="score-band"></h3><p class="muted">Work-priority heuristic—not a conversion probability.</p></div>
@@ -187,14 +229,14 @@
 
             <details class="evidence-panel"><summary>Why QuoteRescue decided this</summary><div class="evidence-columns"><div><h4>Evidence</h4><ul id="evidence-list"></ul></div><div><h4>Conflicts / reconciliation</h4><ul id="conflict-list"></ul></div></div></details>
 
-            <section class="result-section"><div class="section-heading"><div><p class="mini-label">ACTIVE CAMPAIGN</p><h3>7-day recovery cadence</h3></div></div><div id="sequence" class="timeline"></div></section>
+            <section class="result-section" id="cadence-section"><div class="section-heading"><div><p class="mini-label">ACTIVE CAMPAIGN</p><h3 id="cadence-title">Recovery cadence</h3></div></div><div id="sequence" class="timeline"></div></section>
 
-            <section id="reactivation-section" class="result-section reactivation-section"><div class="section-heading"><div><p class="mini-label">SEPARATE PLAYBOOK</p><h3>30+ day reactivation</h3></div></div><article id="reactivation-card" class="message-card wide"></article></section>
+            <section id="reactivation-section" class="result-section reactivation-section"><div class="section-heading"><div><p class="mini-label">SEPARATE PLAYBOOK</p><h3>Reactivation touch</h3></div></div><article id="reactivation-card" class="message-card wide"></article></section>
 
-            <section class="result-section"><div class="section-heading"><div><p class="mini-label">READY TO REVIEW</p><h3>Message toolkit</h3></div></div><div id="message-cards" class="message-grid"></div></section>
+            <section class="result-section"><div class="section-heading"><div><p class="mini-label">READY TO REVIEW</p><h3>Permitted message toolkit</h3></div></div><div id="message-cards" class="message-grid"></div></section>
           </div>
 
-          <div class="compliance-note"><strong>Use responsibly.</strong> Contact only people you are permitted to contact, honor opt-outs, and review every message before sending. QuoteRescue is a deterministic decision aid, not legal advice or a sales guarantee.</div>
+          <div class="compliance-note"><strong>Use responsibly.</strong> Contact only people you are permitted to contact, honor global and channel-specific restrictions, and review every message before sending. QuoteRescue is a deterministic decision aid, not legal advice or a sales guarantee.</div>
         </div>
       </section>
     </section>
