@@ -40,7 +40,7 @@ function clauseFacts(clause,index,previousBlocker=null) {
   if(/\b(?:financing\s+(?:(?:is\s+)?(?:approved|resolved|fine|not\s+a\s+problem)|isn't\s+a\s+problem)|loan\s+(?:is\s+)?approved|funding\s+(?:is\s+)?secured|no\s+financing\s+(?:is\s+)?needed)\b/.test(clause))facts.push(fact('financing','resolved',clause,index,temporal));
   else if(/\b(?:financing|funding|loan)\b/.test(clause))facts.push(fact('financing','active',clause,index,temporal));
 
-  if(/\b(?:we\s+trust\s+you|trust\s+(?:is\s+)?not\s+a\s+concern|warranty\s+(?:is\s+)?not\s+a\s+concern|trust\s+(?:is\s+)?resolved)\b/.test(clause))facts.push(fact('trust','resolved',clause,index,temporal));
+  if(/\b(?:we\s+trust\s+(?:you|the\s+(?:proposal|quote|estimate|plan))|trust\s+(?:is\s+)?not\s+a\s+concern|warranty\s+(?:is\s+)?not\s+a\s+concern|trust\s+(?:is\s+)?resolved|(?:trust|warranty)\s+(?:concern|issue)\s+(?:(?:was|is|has\s+been)\s+)?resolved)\b/.test(clause))facts.push(fact('trust','resolved',clause,index,/\bnow\b/.test(clause)?'current':temporal));
   else if(/\b(?:not sure|uncertain|trust issue|warranty concern)\b/.test(clause))facts.push(fact('trust','active',clause,index,temporal));
 
   if(/\b(?:timing\s+(?:works|is\s+perfect|is\s+fine|is\s+not\s+a\s+problem)|schedule\s+(?:now\s+)?works|schedule\s+(?:is\s+)?not\s+a\s+problem)\b/.test(clause))facts.push(fact('timing','resolved',clause,index,temporal));
