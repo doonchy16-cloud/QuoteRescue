@@ -52,10 +52,8 @@ export function deriveContactPolicy(input={}){
   const evidence=[],conflicts=[];
   const channels={sms:input.smsPermission??'unknown',phone:input.phonePermission??'unknown',email:input.emailPermission??'unknown'};
 
-  if(input.contactPermission==='allowed'){
-    for(const channel of CHANNELS)if(channels[channel]==='unknown')channels[channel]='allowed';
-    evidence.push('Structured global contact permission is allowed.');
-  }else if(input.contactPermission==='do_not_contact')evidence.push('Structured global contact permission is do not contact.');
+  if(input.contactPermission==='allowed')evidence.push('Structured global contact permission is allowed; channel permissions remain independently recorded.');
+  else if(input.contactPermission==='do_not_contact')evidence.push('Structured global contact permission is do not contact.');
   else evidence.push('Global contact permission is not explicitly confirmed.');
 
   const explicitAllowed=new Set(),explicitDenied=new Set();
