@@ -205,3 +205,14 @@ export function generateRecoveryPlan(input = {}) {
     sequence: buildSequence(value, sms, email, objectionResponse)
   };
 }
+
+export function formatPlanText(input = {}, plan) {
+  const value = normalized(input);
+  const safePlan = plan ?? generateRecoveryPlan(value);
+  const amount = value.quoteAmount ? `$${Math.round(value.quoteAmount).toLocaleString()}` : 'Not supplied';
+  const sequence = safePlan.sequence
+    .map((step) => `${step.day} — ${step.action}\n${step.purpose}\n${step.copy}`)
+    .join('\n\n');
+
+  return `QUOTE RESCUE PLAN\n\nCustomer: ${value.customerName}\nTrade: ${value.trade}\nProject: ${value.jobDescription}\nQuote amount: ${amount}\nQuote age: ${value.quoteAgeDays} days\n\nRECOVERY SCORE\n${safePlan.score}/100 — ${safePlan.band}\n\nDIAGNOSIS\n${safePlan.diagnosis}\n\nNEXT MOVE\n${safePlan.nextMove}\n\n7-DAY RECOVERY SEQUENCE\n${sequence}\n\nSMS\n${safePlan.sms}\n\nEMAIL\nSubject: ${safePlan.email.subject}\n\n${safePlan.email.body}\n\nVOICEMAIL\n${safePlan.voicemail}\n\nOBJECTION RESPONSE\n${safePlan.objectionResponse}\n\nCLOSE THE LOOP\n${safePlan.closeLoop}\n\nREACTIVATION\n${safePlan.reactivation}\n`;
+}
