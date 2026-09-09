@@ -67,6 +67,21 @@ test('V4 Unicode-propagation attack: every generated/exported payload remains we
   payloads.forEach((value,index)=>assertWellFormedUtf16(value,`payload ${index}`));
 });
 
+test('V4 truncation-alignment attack: SMS and email subjects stay well-formed across emoji boundary positions', () => {
+  for(let i=0;i<=58;i++){
+    const customerName='A'.repeat(i)+'😀';
+    const plan=generateRecoveryPlan({...base,customerName,businessName:'B'.repeat(100),trade:'T'.repeat(80),jobDescription:'J'.repeat(600)});
+    assertWellFormedUtf16(plan.campaign.sms,`sms customer position ${i}`);
+  }
+  for(let i=0;i<=78;i++){
+    const trade='T'.repeat(i)+'😀'+'X'.repeat(Math.max(0,78-i));
+    const validation=parseInput({...base,trade});
+    if(!validation.valid) continue;
+    const plan=generateRecoveryPlan({...base,trade});
+    assertWellFormedUtf16(plan.campaign.email.subject,`subject trade position ${i}`);
+  }
+});
+
 test('V4 clipboard-failure attack: fallback cleanup is guaranteed even when execCommand throws', () => {
   const source=functionSource('async function copyText','function showToast');
   assert.match(source,/finally\s*\{[\s\S]*area\.remove\(\)/,'clipboard fallback must remove its temporary textarea in finally');
