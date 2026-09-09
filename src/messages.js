@@ -17,7 +17,8 @@ const identity=(input)=>`${input.repName}${input.businessName?` with ${input.bus
 const projectRef=(input)=>shortProjectReference(input.jobDescription,64)||input.trade;
 const amountRef=(input)=>input.quoteAmount?` ($${Math.round(input.quoteAmount).toLocaleString()})`:'';
 function boundedSms(text){const clean=sanitizeSingleLine(text);return clean.length<=320?clean:`${clean.slice(0,317).trimEnd()}…`;}
-function subjectFor(input){const trade=sanitizeSingleLine(input.trade)||'project';const subject=`Quick follow-up on your ${trade} estimate`;return subject.length<=90?subject:`${subject.slice(0,89)}…`;}
+function boundedSubject(text){const clean=sanitizeSingleLine(text);return clean.length<=90?clean:`${clean.slice(0,89)}…`;}
+function subjectFor(input){return boundedSubject(`Quick follow-up on your ${sanitizeSingleLine(input.trade)||'project'} estimate`);}
 
 function blockerQuestion(context,tone){const t=TONE[tone];switch(context.primaryBlocker){case'budget':return tone==='direct'?'Which part of the scope is creating the budget issue?':'Would it help to separate the must-haves from the optional scope?';case'price':return tone==='direct'?'Want to compare what is included line by line?':'Would a quick scope comparison make the price easier to evaluate?';case'timing':return tone==='direct'?'What timing would actually work?':'Would it help to map the project around the timing that works for you?';case'competitor':return tone==='direct'?'Want a quick scope comparison?':'Would a side-by-side scope and assumptions check help you compare fairly?';case'trust':return tone==='direct'?'What specifically needs to be verified?':'What would you like verified before you feel comfortable deciding?';case'financing':return tone==='direct'?'Is funding the main blocker?':'Would it help to confirm the exact scope and priorities before deciding how to fund it?';case'spouse_partner':return tone==='direct'?'Want a short summary you can review together?':'Would a short scope-and-decisions summary make it easier to review together?';case'not_ready':return tone==='direct'?'When should I reconnect?':'What would be a better time for me to reconnect?';default:return t.ask;}}
 function buildSms(input,context,phase='open'){const t=TONE[input.tone],ref=projectRef(input);if(phase==='open')return boundedSms(`${t.greeting(input.customerName)} This is ${identity(input)}. I’m following up on the ${input.trade} estimate for ${ref}. ${blockerQuestion(context,input.tone)}`);if(phase==='blocker')return boundedSms(`${input.customerName}, ${blockerQuestion(context,input.tone)} ${t.close}`);if(phase==='clarify')return boundedSms(`${input.customerName}, I can summarize the key scope, assumptions, and decisions for ${ref} in a few bullets so you can review it quickly. ${t.ask}`);return boundedSms(`${input.customerName}, ${t.close}`);}
@@ -25,24 +26,29 @@ function buildEmail(input,context){const t=TONE[input.tone],ref=projectRef(input
 function buildVoicemail(input,context){const ref=projectRef(input);const callback=input.callbackPhone?` You can call me at ${input.callbackPhone}.`:' You can call me back when convenient.';return `Hi ${input.customerName}, this is ${identity(input)}. I’m following up on the ${input.trade} estimate for ${ref}. ${blockerQuestion(context,input.tone)}${callback} Thanks.`;}
 function obstructionCopy(input,context){const t=TONE[input.tone],ref=projectRef(input),guidance=BLOCKER_GUIDANCE[context.primaryBlocker]??BLOCKER_GUIDANCE.unknown;const lead=input.tone==='direct'?`${input.customerName}, here’s the useful next step:`:`${input.customerName}, the most useful next step is to`;return boundedSms(`${lead} ${guidance} for ${ref}. ${blockerQuestion(context,input.tone)} ${t.close}`);}
 function closeLoop(input){if(input.tone==='warm')return boundedSms(`${input.customerName}, I don’t want to over-follow-up. Would you prefer that I keep this open, reconnect later, or close it out for now? Any of those is completely fine.`);if(input.tone==='premium')return boundedSms(`${input.customerName}, to keep this organized, would you like me to keep the estimate active, schedule a later follow-up, or close it for now?`);if(input.tone==='consultative')return boundedSms(`${input.customerName}, I want to respect your timing. Should I keep this open, reconnect later, or close it out for now?`);if(input.tone==='concise')return boundedSms(`${input.customerName}, should I keep this open, follow up later, or close it out?`);return boundedSms(`${input.customerName}, keep it open, follow up later, or close it out?`);}
-function reactivation(input){const ref=projectRef(input),t=TONE[input.tone];return boundedSms(`${input.customerName}, I’m revisiting the ${input.trade} estimate for ${ref}. Has the project become relevant again, or is it still on hold? ${t.close}`);}
+function reactivationSms(input){const ref=projectRef(input),t=TONE[input.tone];return boundedSms(`${input.customerName}, I’m revisiting the ${input.trade} estimate for ${ref}. Has the project become relevant again, or is it still on hold? ${t.close}`);}
+function reactivationEmail(input){const t=TONE[input.tone],ref=projectRef(input);return{subject:boundedSubject(`Revisiting your ${sanitizeSingleLine(input.trade)||'project'} estimate`),body:`${t.greeting(input.customerName)}\n\nThis is ${identity(input)}. I’m revisiting the estimate for ${ref}. Has the project become relevant again, or is it still on hold?\n\n${t.close}`};}
+function reactivationVoicemail(input){const ref=projectRef(input);const callback=input.callbackPhone?` You can call me at ${input.callbackPhone}.`:' You can call me back when convenient.';return `Hi ${input.customerName}, this is ${identity(input)}. I’m revisiting the ${input.trade} estimate for ${ref}. If the project is relevant again, I’m happy to help; if not, no problem.${callback} Thanks.`;}
 
 function toolkit(input,context){const policy=context.channelPolicy?.channels??{};return{
   sms:policy.sms==='denied'?'':buildSms(input,context,'open'),
   email:policy.email==='denied'?{subject:'',body:''}:buildEmail(input,context),
   voicemail:policy.phone==='denied'?'':buildVoicemail(input,context),
   objectionResponse:policy.sms==='denied'?'':obstructionCopy(input,context),
-  closeLoop:policy.sms==='denied'?'':closeLoop(input),
-  reactivation:policy.sms==='denied'?'':reactivation(input)
+  closeLoop:policy.sms==='denied'?'':closeLoop(input)
 };}
+
+function buildReactivationPlan(input,channel){
+  const day=input.lastContactAgeDays===0?'Day 1+':'When relevant';
+  if(channel==='email'){const email=reactivationEmail(input);return{channel:'email',day,subject:email.subject,body:email.body};}
+  if(channel==='phone')return{channel:'phone',day,voicemail:reactivationVoicemail(input)};
+  return{channel:'sms',day,sms:reactivationSms(input)};
+}
+function reactivationText(plan){if(!plan)return'';if(plan.channel==='email')return`Subject: ${plan.subject}\n\n${plan.body}`;if(plan.channel==='phone')return plan.voicemail;return plan.sms;}
 
 function stepForChannel(day,action,purpose,channel,kit,input,context){
   if(channel==='email')return{day,action:'Email',purpose,subject:kit.email.subject,body:kit.email.body};
-  if(channel==='phone'){
-    const step={day,action:'Voicemail',purpose,voicemail:kit.voicemail};
-    if(kit.sms){step.action='Voicemail + SMS';step.sms=kit.sms;}
-    return step;
-  }
+  if(channel==='phone'){const step={day,action:'Voicemail',purpose,voicemail:kit.voicemail};if(kit.sms){step.action='Voicemail + SMS';step.sms=kit.sms;}return step;}
   return{day,action:'SMS',purpose,sms:kit.sms||buildSms(input,context,'open')};
 }
 
@@ -62,7 +68,7 @@ export function buildDiagnosis(input,context){
 }
 
 export function buildCampaign(input,context){
-  const empty={sevenDaySteps:[],reactivation:'',objectionResponse:'',closeLoop:'',sms:'',email:{subject:'',body:''},voicemail:'',effectiveChannel:null,sendState:'blocked'};
+  const empty={sevenDaySteps:[],reactivation:'',reactivationPlan:null,objectionResponse:'',closeLoop:'',sms:'',email:{subject:'',body:''},voicemail:'',effectiveChannel:null,sendState:'blocked',sendReason:''};
   if(context.recoveryMode==='blocked'||context.contactState==='do_not_contact')return empty;
 
   const selection=chooseEffectiveChannel(input.primaryChannel,context.channelPolicy);
@@ -73,6 +79,7 @@ export function buildCampaign(input,context){
   const sameDay=input.lastContactAgeDays===0;
   const firstDay=sameDay?'Day 1+':'Day 0';
   const purpose='Use the safest next touch for the resolved recovery state.';
+  const reactivationPlan=buildReactivationPlan(input,channel);
   let sevenDaySteps=[];
 
   if(context.recoveryMode==='close_loop'){
@@ -95,5 +102,5 @@ export function buildCampaign(input,context){
     sevenDaySteps=[first,second,third,fourth];
   }
 
-  return{sevenDaySteps,reactivation:kit.reactivation,objectionResponse:kit.objectionResponse,closeLoop:kit.closeLoop,sms:kit.sms,email:kit.email,voicemail:kit.voicemail,effectiveChannel:channel,sendState:selection.sendState,sendReason:selection.reason};
+  return{sevenDaySteps,reactivation:reactivationText(reactivationPlan),reactivationPlan,objectionResponse:kit.objectionResponse,closeLoop:kit.closeLoop,sms:kit.sms,email:kit.email,voicemail:kit.voicemail,effectiveChannel:channel,sendState:selection.sendState,sendReason:selection.reason};
 }
