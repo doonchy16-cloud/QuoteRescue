@@ -1,4 +1,4 @@
-import { sanitizeSingleLine, shortProjectReference } from './domain.js';
+import { sanitizeSingleLine, shortProjectReference, truncateWithEllipsis, formatCurrencyAmount } from './domain.js';
 import { chooseEffectiveChannel } from './contact-policy.js';
 
 const TONE = Object.freeze({
@@ -15,9 +15,9 @@ const BLOCKER_GUIDANCE = Object.freeze({
 
 const identity=(input)=>`${input.repName}${input.businessName?` with ${input.businessName}`:''}`;
 const projectRef=(input)=>shortProjectReference(input.jobDescription,64)||input.trade;
-const amountRef=(input)=>input.quoteAmount?` ($${Math.round(input.quoteAmount).toLocaleString()})`:'';
-function boundedSms(text){const clean=sanitizeSingleLine(text);return clean.length<=320?clean:`${clean.slice(0,317).trimEnd()}…`;}
-function boundedSubject(text){const clean=sanitizeSingleLine(text);return clean.length<=90?clean:`${clean.slice(0,89)}…`;}
+const amountRef=(input)=>input.quoteAmount?` ($${formatCurrencyAmount(input.quoteAmount)})`:'';
+function boundedSms(text){const clean=sanitizeSingleLine(text);return truncateWithEllipsis(clean,320);}
+function boundedSubject(text){const clean=sanitizeSingleLine(text);return truncateWithEllipsis(clean,90);}
 function subjectFor(input){return boundedSubject(`Quick follow-up on your ${sanitizeSingleLine(input.trade)||'project'} estimate`);}
 
 function blockerQuestion(context,tone){const t=TONE[tone];switch(context.primaryBlocker){case'budget':return tone==='direct'?'Which part of the scope is creating the budget issue?':'Would it help to separate the must-haves from the optional scope?';case'price':return tone==='direct'?'Want to compare what is included line by line?':'Would a quick scope comparison make the price easier to evaluate?';case'timing':return tone==='direct'?'What timing would actually work?':'Would it help to map the project around the timing that works for you?';case'competitor':return tone==='direct'?'Want a quick scope comparison?':'Would a side-by-side scope and assumptions check help you compare fairly?';case'trust':return tone==='direct'?'What specifically needs to be verified?':'What would you like verified before you feel comfortable deciding?';case'financing':return tone==='direct'?'Is funding the main blocker?':'Would it help to confirm the exact scope and priorities before deciding how to fund it?';case'spouse_partner':return tone==='direct'?'Want a short summary you can review together?':'Would a short scope-and-decisions summary make it easier to review together?';case'not_ready':return tone==='direct'?'When should I reconnect?':'What would be a better time for me to reconnect?';default:return t.ask;}}
