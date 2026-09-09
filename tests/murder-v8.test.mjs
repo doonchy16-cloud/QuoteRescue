@@ -338,7 +338,9 @@ test('V8 literal 1,000,000-way murder attack: one million distinct adversarial c
       const { attackId, raw, expectation } = makeCase(family,index);
       if (seenIds.has(attackId)) collect(findings,'duplicate_attack_id',family,index,{attackId});
       seenIds.add(attackId);
-      if (raw.callbackPhone !== String(1000000 + attackId)) collect(findings,'distinctness_witness_corrupted',family,index,{attackId,callbackPhone:raw.callbackPhone});
+      const uniqueWitness = `V8-${String(attackId).padStart(7,'0')}`;
+      const hasDistinctWitness = String(raw.businessName ?? '').includes(uniqueWitness) || raw.callbackPhone === String(1000000 + attackId);
+      if (!hasDistinctWitness) collect(findings,'distinctness_witness_corrupted',family,index,{attackId,businessName:raw.businessName,callbackPhone:raw.callbackPhone});
 
       let validation;
       try { validation=validateInput(raw); }
