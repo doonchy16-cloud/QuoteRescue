@@ -28,9 +28,24 @@ function currentActiveBlocker(current) {
   return null;
 }
 
+function blockerFactType(blocker) {
+  return Object.entries(INTERPRETER_BLOCKER).find(([, mapped]) => mapped === blocker)?.[0] ?? null;
+}
+
+function factRank(item) {
+  return (item.temporal === 'current' ? 100 : 20) + ((item.state === 'resolved' || item.state === 'not_selected') ? 20 : 0) + (item.index ?? 0);
+}
+
+function selectedFact(interpretation, type, state) {
+  const candidates = (interpretation.facts ?? [])
+    .filter((item) => item.type === type && (state == null || item.state === state))
+    .sort((a,b) => factRank(a) - factRank(b));
+  return candidates.at(-1) ?? null;
+}
+
 function resolvedStructuredConflict(structuredBlocker, current) {
   if (!structuredBlocker) return false;
-  const factType = Object.entries(INTERPRETER_BLOCKER).find(([, blocker]) => blocker === structuredBlocker)?.[0];
+  const factType = blockerFactType(structuredBlocker);
   if (factType && current[factType] === 'resolved') return true;
   if (structuredBlocker === 'competitor' && current.competitor === 'not_selected') return true;
   return false;
@@ -55,11 +70,21 @@ export function deriveDecision(input = {}, contactPolicy = {}, interpretation = 
   let engagementState = structuredEngagement(input.stage);
   let recoveryMode = structuredMode(input.stage, primaryBlocker, input.quoteAgeDays ?? 0);
 
+  const positiveIntentFact = current.intent === 'positive' ? selectedFact(interpretation,'intent','positive') : null;
+  const hasCurrentPositiveIntent = current.intent === 'positive' && positiveIntentFact?.temporal === 'current';
+  const rawActiveTextBlocker = currentActiveBlocker(current);
+  const rawActiveFactType = blockerFactType(rawActiveTextBlocker);
+  const rawActiveTextFact = rawActiveFactType ? selectedFact(interpretation,rawActiveFactType,'active') : null;
+  const activeTextBlocker = hasCurrentPositiveIntent && rawActiveTextFact?.temporal === 'past' ? null : rawActiveTextBlocker;
+
+  if (rawActiveTextBlocker && !activeTextBlocker) {
+    conflicts.push(`Past ${rawActiveTextBlocker} evidence is retained as history but does not override current positive intent.`);
+  }
+
   if (explicitBlocker && stageBlocker && explicitBlocker !== stageBlocker) {
     conflicts.push(`Selected objection (${explicitBlocker}) differs from stage-implied blocker (${stageBlocker}); selected objection is authoritative unless current evidence resolves it.`);
   }
 
-  const activeTextBlocker = currentActiveBlocker(current);
   if (activeTextBlocker) {
     if (structuredBlocker && structuredBlocker !== activeTextBlocker) {
       conflicts.push(`Current text suggests ${activeTextBlocker}, while structured input says ${structuredBlocker}; structured blocker remains authoritative.`);
@@ -73,7 +98,10 @@ export function deriveDecision(input = {}, contactPolicy = {}, interpretation = 
     primaryBlocker = activeTextBlocker ?? 'none';
   }
 
-  if (current.competitor === 'selected') {
+  const competitorSelectedFact = current.competitor === 'selected' ? selectedFact(interpretation,'competitor','selected') : null;
+  const staleCompetitorSelection = hasCurrentPositiveIntent && competitorSelectedFact?.temporal === 'past';
+
+  if (current.competitor === 'selected' && !staleCompetitorSelection) {
     if (structuredBlocker && structuredBlocker !== 'competitor') conflicts.push(`Current text says another provider was selected, overriding structured blocker ${structuredBlocker}.`);
     primaryBlocker = 'competitor';
     engagementState = 'lost';
@@ -86,6 +114,7 @@ export function deriveDecision(input = {}, contactPolicy = {}, interpretation = 
     if (primaryBlocker === 'none') primaryBlocker = 'not_ready';
     recoveryMode = 'nurture';
   } else if (current.intent === 'positive') {
+    if (staleCompetitorSelection) conflicts.push('Past competitor selection is retained as history but current positive intent is authoritative.');
     if (input.stage === 'lost_ghosted') conflicts.push('Stage says lost/ghosted, but current text shows positive intent; current intent overrides the stale stage.');
     if (input.stage === 'considering_competitor' && current.competitor === 'not_selected') conflicts.push('Stage says considering competitor, but current text indicates the customer chose us / did not select a competitor.');
     if (['budget_issue','financing_issue','delayed_timing'].includes(input.stage) && resolvedStructuredConflict(stageBlocker, current)) conflicts.push(`Stage-implied ${stageBlocker} issue appears resolved in current text.`);
