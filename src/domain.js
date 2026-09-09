@@ -36,6 +36,28 @@ export function sanitizeSingleLine(value) {
   return stripControls(spaced, false).replace(/\s{2,}/g, ' ').trim();
 }
 
+export function truncateWithEllipsis(value, maxLength) {
+  const text = String(value ?? '');
+  if (text.length <= maxLength) return text;
+  const contentBudget = Math.max(0, maxLength - 1);
+  let sliced = text.slice(0, contentBudget);
+  if (sliced.length) {
+    const last = sliced.charCodeAt(sliced.length - 1);
+    if (last >= 0xD800 && last <= 0xDBFF) sliced = sliced.slice(0, -1);
+  }
+  return `${sliced.trimEnd()}…`;
+}
+
+export function formatCurrencyAmount(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '';
+  const hasFraction = !Number.isInteger(number);
+  return number.toLocaleString('en-US', {
+    minimumFractionDigits: hasFraction ? 2 : 0,
+    maximumFractionDigits: 2
+  });
+}
+
 function validateText(raw, key, { required = false, singleLine = false } = {}, errors = {}) {
   const max = LIMITS[key];
   if (raw !== undefined && raw !== null && typeof raw !== 'string') {
@@ -59,7 +81,7 @@ function numberLabel(key) {
   return ({ quoteAgeDays:'Quote age', quoteAmount:'Quote amount', lastContactAgeDays:'Days since last contact' })[key] ?? key;
 }
 
-function parseDecimal(raw, key, { optional = false, emptyValue = 0, min = 0, max = Number.MAX_SAFE_INTEGER, integer = false } = {}, errors = {}) {
+function parseDecimal(raw, key, { optional = false, emptyValue = 0, min = 0, max = Number.MAX_SAFE_INTEGER, integer = false, maxFractionDigits = null } = {}, errors = {}) {
   if (raw !== undefined && raw !== null && typeof raw !== 'string' && typeof raw !== 'number') {
     errors[key] = `${numberLabel(key)} must be a decimal number.`;
     return emptyValue;
@@ -70,9 +92,12 @@ function parseDecimal(raw, key, { optional = false, emptyValue = 0, min = 0, max
     errors[key] = `${numberLabel(key)} is required.`;
     return 0;
   }
-  const grammar = integer ? /^(?:0|[1-9]\d*)$/ : /^(?:0|[1-9]\d*)(?:\.\d+)?$/;
+  let grammar;
+  if (integer) grammar = /^(?:0|[1-9]\d*)$/;
+  else if (maxFractionDigits) grammar = new RegExp(`^(?:0|[1-9]\\d*)(?:\\.\\d{1,${maxFractionDigits}})?$`);
+  else grammar = /^(?:0|[1-9]\d*)(?:\.\d+)?$/;
   if (!grammar.test(text)) {
-    errors[key] = `${numberLabel(key)} must use decimal numbers only.`;
+    errors[key] = `${numberLabel(key)} must use decimal numbers only${maxFractionDigits ? ` with at most ${maxFractionDigits} decimal places` : ''}.`;
     return emptyValue;
   }
   const number = Number(text);
@@ -113,7 +138,7 @@ export function parseInput(raw = {}) {
     callbackPhone: validateText(raw.callbackPhone, 'callbackPhone', { singleLine:true }, errors),
     trade: validateText(raw.trade, 'trade', { required:true, singleLine:true }, errors),
     jobDescription: validateText(raw.jobDescription, 'jobDescription', { required:true }, errors),
-    quoteAmount: parseDecimal(raw.quoteAmount, 'quoteAmount', { optional:true, min:0, max:LIMITS.quoteAmount }, errors),
+    quoteAmount: parseDecimal(raw.quoteAmount, 'quoteAmount', { optional:true, min:0, max:LIMITS.quoteAmount, maxFractionDigits:2 }, errors),
     quoteAgeDays: parseDecimal(raw.quoteAgeDays, 'quoteAgeDays', { optional:false, min:0, max:LIMITS.quoteAgeDays, integer:true }, errors),
     lastContactAgeDays: parseDecimal(raw.lastContactAgeDays, 'lastContactAgeDays', { optional:true, emptyValue:null, min:0, max:LIMITS.lastContactAgeDays, integer:true }, errors),
     stage: parseEnum(raw.stage, 'stage', STAGES, 'estimate_sent', errors),
@@ -131,7 +156,5 @@ export function parseInput(raw = {}) {
 
 export function shortProjectReference(jobDescription, max = 72) {
   const cleaned = sanitizeSingleLine(jobDescription);
-  if (cleaned.length <= max) return cleaned;
-  const sliced = cleaned.slice(0, Math.max(1, max - 1)).trimEnd();
-  return `${sliced}…`;
+  return truncateWithEllipsis(cleaned, max);
 }
