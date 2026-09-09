@@ -1,4 +1,4 @@
-import { parseInput } from './domain.js';
+import { parseInput, sanitizeSingleLine } from './domain.js';
 import { deriveRecoveryContext } from './context.js';
 import { scorePriority } from './scoring.js';
 import { buildCampaign, buildDiagnosis } from './messages.js';
@@ -71,7 +71,8 @@ export function formatPlanText(raw = {}, suppliedPlan = null) {
   const conflicts = plan.context.conflicts.length ? `\n\nCONTEXT CONFLICTS\n${plan.context.conflicts.map((item) => `- ${item}`).join('\n')}` : '';
   const channelPolicy = plan.context.channelPolicy?.channels ?? {};
   const channelLine = `Channel policy: SMS ${channelPolicy.sms ?? 'unknown'} / Phone ${channelPolicy.phone ?? 'unknown'} / Email ${channelPolicy.email ?? 'unknown'}`;
-  const header = `QUOTE RESCUE PLAN\n\nCustomer: ${input.customerName}\nRepresentative: ${input.repName}${input.businessName ? ` — ${input.businessName}` : ''}\nTrade: ${input.trade}\nProject: ${input.jobDescription}\nQuote amount: ${amount}\nQuote age: ${input.quoteAgeDays} days\nContact state: ${plan.context.contactState}\n${channelLine}\nRecovery mode: ${plan.context.recoveryMode}\nPrimary blocker: ${plan.context.primaryBlocker}`;
+  const project = sanitizeSingleLine(input.jobDescription);
+  const header = `QUOTE RESCUE PLAN\n\nCustomer: ${input.customerName}\nRepresentative: ${input.repName}${input.businessName ? ` — ${input.businessName}` : ''}\nTrade: ${input.trade}\nProject: ${project}\nQuote amount: ${amount}\nQuote age: ${input.quoteAgeDays} days\nContact state: ${plan.context.contactState}\n${channelLine}\nRecovery mode: ${plan.context.recoveryMode}\nPrimary blocker: ${plan.context.primaryBlocker}`;
   if (plan.blocked) return `${header}\n\nOUTREACH BLOCKED — DO NOT CONTACT\n${plan.blockedReason}\n\nNEXT MOVE\n${plan.nextMove}\n\nEVIDENCE\n${evidence}${conflicts}\n`;
   if (plan.sendBlocked) return `${header}\n\nSEND HOLD — CHANNEL PERMISSION\n${plan.campaign.sendReason}\n\nNEXT MOVE\n${plan.nextMove}\n\nEVIDENCE\n${evidence}${conflicts}\n`;
   const sequence = plan.campaign.sevenDaySteps.map(renderStep).join('\n\n');
