@@ -21,17 +21,18 @@ function temporalFor(clause) {
 
 function clauseFacts(clause,index,previousBlocker=null) {
   const temporal=temporalFor(clause), facts=[];
-  const negativeIntent=/\b(?:can(?:not|'t)|unable|not able|aren't able|isn't able|won't|will not|does not want|doesn't want|do not want|don't want)\s+(?:to\s+)?(?:move forward|proceed)\b/;
-  const explicitDecline=/\b(?:not interested|declined|not moving forward|will not proceed|won't proceed)\b/;
+  const refusalIntent=/\b(?:(?:does\s+not|doesn't|do\s+not|don't)\s+want\s+to\s+(?:move forward|proceed)|(?:will\s+not|won't)\s+(?:move forward|proceed)|not\s+interested|declined|not\s+moving\s+forward)\b/;
+  const inabilityIntent=/\b(?:can(?:not|'t)|unable|not able|aren't able|isn't able)\s+(?:to\s+)?(?:move forward|proceed)\b/;
   const positiveIntent=/\b(?:ready\s+to\s+(?:proceed|move forward)|wants?\s+to\s+(?:proceed|move forward)|want\s+to\s+(?:proceed|move forward)|move forward|proceed with us|chose us|choose us)\b/;
-  const negativeIntentMatched=has(clause,negativeIntent);
+  const refused=has(clause,refusalIntent);
+  const unable=has(clause,inabilityIntent);
   const notReadyPhrase=/\bnot\s+ready\b/.test(clause)||/\bon\s+hold\b/.test(clause);
 
-  if(negativeIntentMatched){facts.push(fact('intent','negative',clause,index,temporal));facts.push(fact('not_ready','active',clause,index,temporal));}
-  else if(has(clause,explicitDecline))facts.push(fact('intent','declined',clause,index,temporal));
+  if(refused) facts.push(fact('intent','declined',clause,index,temporal));
+  else if(unable){facts.push(fact('intent','negative',clause,index,temporal));facts.push(fact('not_ready','active',clause,index,temporal));}
 
   if(notReadyPhrase)facts.push(fact('not_ready','active',clause,index,temporal));
-  if(!negativeIntentMatched&&!notReadyPhrase&&/\b(?:ready\s+now|now\s+ready|ready\s+to\s+(?:proceed|move forward))\b/.test(clause))facts.push(fact('not_ready','resolved',clause,index,'current'));
+  if(!refused&&!unable&&!notReadyPhrase&&/\b(?:ready\s+now|now\s+ready|ready\s+to\s+(?:proceed|move forward))\b/.test(clause))facts.push(fact('not_ready','resolved',clause,index,'current'));
 
   if(/\b(?:budget\s+(?:is\s+)?(?:fine|works|approved|resolved|not\s+a\s+problem)|enough\s+budget|do(?:es)?n't\s+have\s+a\s+budget\s+issue|no\s+budget\s+(?:issue|problem))\b/.test(clause))facts.push(fact('budget','resolved',clause,index,temporal));
   else if(/\b(?:budget|can't afford|cannot afford|too expensive)\b/.test(clause))facts.push(fact('budget','active',clause,index,temporal));
