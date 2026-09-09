@@ -15,7 +15,7 @@ test('facade validates raw input without dangerous coercion', () => {
 });
 
 test('blocked contact yields score zero and no campaign', () => {
-  const plan = generateRecoveryPlan({ ...base, lastContact:'Customer said STOP texting me.', contactPermission:'unknown' });
+  const plan = generateRecoveryPlan({ ...base, lastContact:'Customer said STOP.', contactPermission:'unknown' });
   assert.equal(plan.blocked, true);
   assert.equal(plan.score, 0);
   assert.equal(plan.context.recoveryMode, 'blocked');

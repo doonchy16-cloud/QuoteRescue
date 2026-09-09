@@ -29,8 +29,8 @@ test('murder matrix: all 1,080 supported stage/blocker/tone/channel combinations
   assert.equal(count, 1080);
 });
 
-test('all explicit no-contact variants block before score or campaign', () => {
-  const phrases = ['STOP texting me','Do not contact me again',"Don't contact us",'unsubscribe','remove me from your list','I opt out','Never contact this number','My attorney said do not contact me','Lawyer says never contact again'];
+test('all explicit global no-contact variants block before score or campaign', () => {
+  const phrases = ['STOP','Do not contact me again',"Don't contact us",'unsubscribe','remove me from your list','I opt out','Never contact this number','My attorney said do not contact me','Lawyer says never contact again'];
   for (const lastContact of phrases) {
     const plan = generateRecoveryPlan({ ...base, lastContact, contactPermission:'unknown' });
     assert.equal(plan.blocked, true, lastContact);

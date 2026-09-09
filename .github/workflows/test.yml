@@ -17,3 +17,25 @@ jobs:
         run: npm test
       - name: Check JavaScript syntax
         run: for f in src/*.js; do node --check "$f"; done
+
+  browser-v6:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install browser-test dependency
+        run: npm install --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run V6 real-browser murder suite
+        run: npm run test:browser
+      - name: Upload V6 rendered-browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quoterescue-v6-browser-evidence
+          path: artifacts/v6/
+          if-no-files-found: warn
