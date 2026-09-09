@@ -1,4 +1,4 @@
-import { parseInput, sanitizeSingleLine } from './domain.js';
+import { parseInput, sanitizeSingleLine, formatCurrencyAmount } from './domain.js';
 import { deriveRecoveryContext } from './context.js';
 import { scorePriority } from './scoring.js';
 import { buildCampaign, buildDiagnosis } from './messages.js';
@@ -66,7 +66,7 @@ function renderStep(step) {
 export function formatPlanText(raw = {}, suppliedPlan = null) {
   const plan = suppliedPlan ?? generateRecoveryPlan(raw);
   const input = plan.input ?? requireValid(raw);
-  const amount = input.quoteAmount ? `$${Math.round(input.quoteAmount).toLocaleString()}` : 'Not supplied';
+  const amount = input.quoteAmount ? `$${formatCurrencyAmount(input.quoteAmount)}` : 'Not supplied';
   const evidence = plan.context.evidence.length ? plan.context.evidence.map((item) => `- ${item}`).join('\n') : '- No deterministic context cue matched.';
   const conflicts = plan.context.conflicts.length ? `\n\nCONTEXT CONFLICTS\n${plan.context.conflicts.map((item) => `- ${item}`).join('\n')}` : '';
   const channelPolicy = plan.context.channelPolicy?.channels ?? {};
