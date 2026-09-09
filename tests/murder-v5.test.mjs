@@ -71,7 +71,7 @@ test('V5 download-construction attack: Blob and object-URL failures are caught w
   const source=functionSource('function downloadText','form.addEventListener');
   assert.match(source,/let\s+url\s*=\s*null/,'download must track whether an object URL was actually created');
   assert.match(source,/try\s*\{[\s\S]*new Blob\([\s\S]*URL\.createObjectURL\([\s\S]*a\.click\(\)/,'Blob, object URL creation, and click must share the protected try boundary');
-  assert.match(source,/finally\s*\{[\s\S]*a\?\.remove\(\)[\s\S]*if\s*\(url\)[\s\S]*URL\.revokeObjectURL\(url\)/,'cleanup must tolerate partially constructed downloads');
+  assert.match(source,/finally\s*\{[\s\S]*(?:a\?\.remove\(\)|if\s*\(a\)\s*a\.remove\(\))[\s\S]*if\s*\(url\)[\s\S]*URL\.revokeObjectURL\(url\)/,'cleanup must tolerate partially constructed downloads');
 });
 
 test('V5 browser-capability attack: scrolling degrades safely when optional browser APIs are absent or throw', () => {
