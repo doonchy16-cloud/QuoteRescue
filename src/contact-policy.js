@@ -3,7 +3,7 @@ import { CHANNELS } from './domain.js';
 const POLICY_FORMAT_CONTROLS = /[\u200B-\u200F\u202A-\u202E\u2060\u2066-\u2069\uFEFF]/g;
 const CHANNEL_SCOPE = '(?:phone|call|text|sms|email)';
 const CHANNEL_SCOPE_SUFFIX = `\\s+(?:me\\s+)?(?:by|via)\\s+${CHANNEL_SCOPE}\\b`;
-const REPORTED_PREFIX = /^(?:(?:customer|client|they|he|she)\s+(?:said|wrote|replied)|(?:message|reply|response)\s+(?:received|said|read|was))\s*[:;,—–-]?\s*/i;
+const REPORTED_PREFIX = /^(?:(?:customer|client|they|he|she)\s+(?:said|wrote|replied)\s*[:;,—–-]?\s*|(?:message|reply|response)\s+(?:received|said|read|was)\s*[:;,—–-]?\s*|(?:message|reply|response)\s*[:;,—–-]\s*)/i;
 const OUTER_QUOTE = /^["“”'‘’](.*)["“”'‘’]$/s;
 const CONTACT_TARGET = '(?:me|us|them|him|her|this\\s+(?:number|person|customer|client)|the\\s+(?:customer|client))';
 const GLOBAL_CONTACT_END = `(?=$|[.!?,;:'"“”‘’]|\\s+(?:again|anymore|further)\\b)`;
