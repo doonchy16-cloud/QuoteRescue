@@ -241,9 +241,16 @@ async function copyText(text) {
     const area = document.createElement('textarea');
     area.value = text;
     area.style.position = 'fixed'; area.style.opacity = '0';
-    document.body.appendChild(area); area.select();
-    const copied = document.execCommand('copy');
-    area.remove();
+    let copied = false;
+    try {
+      document.body.appendChild(area);
+      area.select();
+      copied = Boolean(document.execCommand?.('copy'));
+    } catch {
+      copied = false;
+    } finally {
+      area.remove();
+    }
     showToast(copied ? 'Copied' : 'Copy failed');
     return copied;
   }
@@ -263,7 +270,16 @@ function downloadText() {
   const a = document.createElement('a');
   const safeName = `${currentInput.customerName}-${currentInput.trade}-quote-rescue`.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
   a.href = url; a.download = `${safeName || 'quote-rescue-plan'}.txt`;
-  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); showToast('Plan downloaded');
+  try {
+    document.body.appendChild(a);
+    a.click();
+    showToast('Plan downloaded');
+  } catch {
+    showToast('Download failed');
+  } finally {
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
 }
 
 form.addEventListener('input', markPlanStale);
@@ -282,5 +298,5 @@ form.addEventListener('submit', (event) => {
 });
 
 document.querySelector('#load-example').addEventListener('click', () => { setFormValues(example); clearErrors(); markPlanStale(); showToast('Example loaded'); });
-document.addEventListener('click', (event) => { const button = event.target.closest('[data-copy]'); if (button && !button.disabled) copyText(copyForKey(button.dataset.copy)); });
+document.addEventListener('click', (event) => { const button = event.target instanceof Element ? event.target.closest('[data-copy]') : null; if (button && !button.disabled) copyText(copyForKey(button.dataset.copy)); });
 document.querySelector('#download-plan').addEventListener('click', downloadText);
