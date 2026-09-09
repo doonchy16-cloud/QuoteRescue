@@ -24,7 +24,6 @@ export function scoreRecovery(raw = {}) {
 function nextMoveFor(input, context, campaign, diagnosisNextMove) {
   if (context.recoveryMode === 'blocked') return diagnosisNextMove;
   if (campaign.sendState === 'blocked_channel') return `Do not send yet. ${campaign.sendReason} Verify contact permission outside QuoteRescue before choosing another channel.`;
-
   let modeMove = diagnosisNextMove;
   if (context.recoveryMode === 'close_loop') modeMove = 'Send at most one respectful close-loop touch, then stop repeated follow-up.';
   if (context.recoveryMode === 'reactivation') modeMove = 'Use one reactivation touch when the opportunity is relevant; do not run an active Day 0/2/4/7 cadence.';
@@ -45,7 +44,6 @@ export function generateRecoveryPlan(raw = {}) {
   const blocked = context.recoveryMode === 'blocked' || context.contactState === 'do_not_contact';
   const blockedReason = blocked ? diagnosis : '';
   const sendBlocked = campaign.sendState === 'blocked_channel';
-
   return {
     input, context, priority, campaign, blocked, blockedReason, sendBlocked,
     diagnosis, nextMove,
@@ -74,11 +72,11 @@ export function formatPlanText(raw = {}, suppliedPlan = null) {
   const channelPolicy = plan.context.channelPolicy?.channels ?? {};
   const channelLine = `Channel policy: SMS ${channelPolicy.sms ?? 'unknown'} / Phone ${channelPolicy.phone ?? 'unknown'} / Email ${channelPolicy.email ?? 'unknown'}`;
   const header = `QUOTE RESCUE PLAN\n\nCustomer: ${input.customerName}\nRepresentative: ${input.repName}${input.businessName ? ` — ${input.businessName}` : ''}\nTrade: ${input.trade}\nProject: ${input.jobDescription}\nQuote amount: ${amount}\nQuote age: ${input.quoteAgeDays} days\nContact state: ${plan.context.contactState}\n${channelLine}\nRecovery mode: ${plan.context.recoveryMode}\nPrimary blocker: ${plan.context.primaryBlocker}`;
-
   if (plan.blocked) return `${header}\n\nOUTREACH BLOCKED — DO NOT CONTACT\n${plan.blockedReason}\n\nNEXT MOVE\n${plan.nextMove}\n\nEVIDENCE\n${evidence}${conflicts}\n`;
   if (plan.sendBlocked) return `${header}\n\nSEND HOLD — CHANNEL PERMISSION\n${plan.campaign.sendReason}\n\nNEXT MOVE\n${plan.nextMove}\n\nEVIDENCE\n${evidence}${conflicts}\n`;
-
   const sequence = plan.campaign.sevenDaySteps.map(renderStep).join('\n\n');
-  const sequenceTitle = plan.context.recoveryMode === 'reactivation' ? 'ACTIVE CADENCE\nNot applicable — reactivation is a separate one-touch path.' : `RECOVERY CADENCE\n${sequence}`;
+  const sequenceTitle = plan.context.recoveryMode === 'reactivation'
+    ? '7-DAY RECOVERY SEQUENCE\nNot applicable — reactivation is a separate one-touch path.'
+    : `7-DAY RECOVERY SEQUENCE\n${sequence}`;
   return `${header}\n\nRECOVERY PRIORITY\n${plan.priority.score}/100 — ${plan.priority.band}\n\nEVIDENCE\n${evidence}${conflicts}\n\nDIAGNOSIS\n${plan.diagnosis}\n\nNEXT MOVE\n${plan.nextMove}\n\n${sequenceTitle}\n\nREACTIVATION\n${plan.campaign.reactivation}\n\nSMS\n${plan.campaign.sms}\n\nEMAIL\nSubject: ${plan.campaign.email.subject}\n\n${plan.campaign.email.body}\n\nVOICEMAIL\n${plan.campaign.voicemail}\n\nOBJECTION RESPONSE\n${plan.campaign.objectionResponse}\n\nCLOSE THE LOOP\n${plan.campaign.closeLoop}\n`;
 }
