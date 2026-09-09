@@ -73,7 +73,6 @@ export function buildCampaign(input,context){
   if(context.recoveryMode==='blocked'||context.contactState==='do_not_contact')return empty;
 
   const selection=chooseEffectiveChannel(input.primaryChannel,context.channelPolicy);
-  const kit=toolkit(input,context);
   if(!selection.channel)return{...empty,sendState:selection.sendState,sendReason:selection.reason};
 
   const channel=selection.channel;
@@ -81,16 +80,34 @@ export function buildCampaign(input,context){
   const firstDay=sameDay?'Day 1+':'Day 0';
   const purpose='Use the safest next touch for the resolved recovery state.';
   const reactivationPlan=buildReactivationPlan(input,channel);
-  let sevenDaySteps=[];
+  const reactivation=reactivationText(reactivationPlan);
+  const kit=toolkit(input,context);
 
   if(context.recoveryMode==='close_loop'){
-    const closeCopy=kit.closeLoop||closeLoop(input);
-    if(channel==='email')sevenDaySteps=[{day:firstDay,action:'Close-loop email',purpose,subject:kit.email.subject,body:`${kit.email.body}\n\n${closeCopy}`}];
-    else if(channel==='phone')sevenDaySteps=[{day:firstDay,action:'Close-loop voicemail',purpose,voicemail:closeLoopVoicemail(input)}];
-    else sevenDaySteps=[{day:firstDay,action:'Close-loop SMS',purpose,sms:closeCopy}];
-  } else if(context.recoveryMode==='reactivation'){
-    sevenDaySteps=[];
-  } else if(context.recoveryMode==='nurture'){
+    let step;
+    const oneTouch={sms:'',email:{subject:'',body:''},voicemail:'',objectionResponse:'',closeLoop:''};
+    const closeCopy=closeLoop(input);
+    if(channel==='email'){
+      const email={subject:kit.email.subject,body:`${kit.email.body}\n\n${closeCopy}`};
+      step={day:firstDay,action:'Close-loop email',purpose,subject:email.subject,body:email.body};
+      oneTouch.email=email;
+    }else if(channel==='phone'){
+      const voicemail=closeLoopVoicemail(input);
+      step={day:firstDay,action:'Close-loop voicemail',purpose,voicemail};
+      oneTouch.voicemail=voicemail;
+    }else{
+      step={day:firstDay,action:'Close-loop SMS',purpose,sms:closeCopy};
+      oneTouch.sms=closeCopy;
+    }
+    return{sevenDaySteps:[step],reactivation,reactivationPlan,...oneTouch,effectiveChannel:channel,sendState:selection.sendState,sendReason:selection.reason};
+  }
+
+  if(context.recoveryMode==='reactivation'){
+    return{...empty,reactivation,reactivationPlan,effectiveChannel:channel,sendState:selection.sendState,sendReason:selection.reason};
+  }
+
+  let sevenDaySteps=[];
+  if(context.recoveryMode==='nurture'){
     const first=stepForChannel(firstDay,'Reconnect',purpose,channel,kit,input,context);
     const later=channel==='email'?{day:'Day 7+',action:'Low-pressure email',purpose:'Offer a clean future reconnect point.',subject:kit.email.subject,body:kit.email.body}:channel==='phone'?{day:'Day 7+',action:'Low-pressure voicemail',purpose:'Offer a clean future reconnect point.',voicemail:kit.voicemail}:{day:'Day 7+',action:'Low-pressure SMS',purpose:'Offer a clean future reconnect point.',sms:buildSms(input,context,'close')};
     sevenDaySteps=[first,later];
@@ -103,5 +120,5 @@ export function buildCampaign(input,context){
     sevenDaySteps=[first,second,third,fourth];
   }
 
-  return{sevenDaySteps,reactivation:reactivationText(reactivationPlan),reactivationPlan,objectionResponse:kit.objectionResponse,closeLoop:kit.closeLoop,sms:kit.sms,email:kit.email,voicemail:kit.voicemail,effectiveChannel:channel,sendState:selection.sendState,sendReason:selection.reason};
+  return{sevenDaySteps,reactivation,reactivationPlan,objectionResponse:kit.objectionResponse,closeLoop:kit.closeLoop,sms:kit.sms,email:kit.email,voicemail:kit.voicemail,effectiveChannel:channel,sendState:selection.sendState,sendReason:selection.reason};
 }
