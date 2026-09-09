@@ -93,9 +93,9 @@ test('V4 delegated-click attack: non-Element event targets cannot crash the docu
   assert.ok(clickLine.includes('?.closest')||clickLine.includes('instanceof Element'),clickLine);
 });
 
-test('V4 download-failure attack: temporary anchor and object URL are cleaned even if click throws', () => {
+test('V4 download-failure attack: temporary resources are cleaned and failure is surfaced honestly', () => {
   const source=functionSource('function downloadText','form.addEventListener');
-  assert.match(source,/try\s*\{[\s\S]*a\.click\(\)[\s\S]*\}\s*finally\s*\{/,'download click must be protected by finally');
+  assert.match(source,/try\s*\{[\s\S]*a\.click\(\)[\s\S]*\}\s*catch[\s\S]*Download failed[\s\S]*finally\s*\{/,'download failure must be caught and reported before finally');
   assert.match(source,/finally\s*\{[\s\S]*a\.remove\(\)[\s\S]*URL\.revokeObjectURL\(url\)/,'download cleanup must remove anchor and revoke URL');
 });
 
