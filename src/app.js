@@ -6,6 +6,7 @@ const results = document.querySelector('#results');
 const staleBanner = document.querySelector('#stale-banner');
 const invalidBanner = document.querySelector('#invalid-banner');
 const blockedState = document.querySelector('#blocked-state');
+const sendHoldState = document.querySelector('#send-hold-state');
 const currentPlanContent = document.querySelector('#current-plan-content');
 const toast = document.querySelector('#toast');
 const errorSummary = document.querySelector('#error-summary');
@@ -17,11 +18,13 @@ const example = {
   repName:'Sam', businessName:'Peak HVAC', callbackPhone:'(555) 010-2020', customerName:'Alex', trade:'HVAC',
   jobDescription:'replace the upstairs heat pump and air handler', quoteAmount:'8400', quoteAgeDays:'3',
   stage:'viewed_no_reply', objection:'none', contactPermission:'allowed',
+  smsPermission:'unknown', phonePermission:'unknown', emailPermission:'unknown',
   lastContactAgeDays:'2', lastContact:'Sent estimate after inspection; customer viewed it yesterday.', tone:'consultative', primaryChannel:'sms'
 };
 
 const escapeHtml = (value) => String(value ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
 const getInput = () => Object.fromEntries(new FormData(form).entries());
+const humanize = (value) => String(value ?? 'unknown').replaceAll('_',' ');
 
 function setFormValues(values) {
   for (const [name, value] of Object.entries(values)) {
@@ -113,46 +116,99 @@ function renderEvidence(plan) {
   document.querySelector('#conflict-list').innerHTML = (plan.context.conflicts.length ? plan.context.conflicts : ['No conflicts detected.']).map((item) => `<li>${escapeHtml(item)}</li>`).join('');
 }
 
+function renderChannelPolicy(plan) {
+  const channelPolicy = plan.context.channelPolicy?.channels ?? {};
+  document.querySelector('#policy-sms').textContent = humanize(channelPolicy.sms);
+  document.querySelector('#policy-phone').textContent = humanize(channelPolicy.phone);
+  document.querySelector('#policy-email').textContent = humanize(channelPolicy.email);
+  document.querySelector('#effective-channel').textContent = plan.campaign.effectiveChannel ? humanize(plan.campaign.effectiveChannel) : 'none';
+  document.querySelector('#send-state').textContent = humanize(plan.campaign.sendState);
+}
+
+function showResultsShell(input) {
+  document.querySelector('#result-title').textContent = `${input.customerName}'s ${input.trade} quote`;
+  emptyState.hidden = true;
+  results.hidden = false;
+}
+
 function renderBlocked(input, plan) {
   resetPlanState('blocked');
-  document.querySelector('#result-title').textContent = `${input.customerName}'s ${input.trade} quote`;
+  showResultsShell(input);
   document.querySelector('#blocked-reason').textContent = plan.blockedReason;
   document.querySelector('#blocked-next').textContent = plan.nextMove;
   blockedState.hidden = false;
+  sendHoldState.hidden = true;
   currentPlanContent.hidden = true;
-  emptyState.hidden = true;
-  results.hidden = false;
   setExportEnabled(false);
   scrollToResults();
 }
 
+function renderSendHold(input, plan) {
+  resetPlanState('send-hold');
+  showResultsShell(input);
+  document.querySelector('#send-hold-reason').textContent = plan.campaign.sendReason || 'The preferred channel cannot be used safely with the current permission evidence.';
+  document.querySelector('#send-hold-next').textContent = plan.nextMove;
+  blockedState.hidden = true;
+  sendHoldState.hidden = false;
+  currentPlanContent.hidden = true;
+  setExportEnabled(false);
+  scrollToResults();
+}
+
+function cadenceTitle(plan) {
+  if (plan.context.recoveryMode === 'close_loop') return 'Single close-loop touch';
+  if (plan.context.recoveryMode === 'nurture') return 'Low-pressure reconnect cadence';
+  if (plan.context.recoveryMode === 'reactivation') return 'No active chase for reactivation';
+  return '7-day recovery cadence';
+}
+
 function renderPlan(input, plan) {
   resetPlanState('current');
+  showResultsShell(input);
   blockedState.hidden = true;
+  sendHoldState.hidden = true;
   currentPlanContent.hidden = false;
-  document.querySelector('#result-title').textContent = `${input.customerName}'s ${input.trade} quote`;
+  renderChannelPolicy(plan);
+
   document.querySelector('#score-value').textContent = plan.score;
   document.querySelector('#score-band').textContent = plan.band;
   const ring = document.querySelector('#score-ring');
   ring.style.setProperty('--score-angle', `${plan.score * 3.6}deg`);
   ring.setAttribute('aria-label', `Recovery priority ${plan.score} out of 100: ${plan.band}`);
   document.querySelector('#factor-list').innerHTML = plan.factors.map(factorChip).join('');
-  document.querySelector('#context-summary').innerHTML = `<span><b>Mode</b>${escapeHtml(plan.context.recoveryMode.replaceAll('_',' '))}</span><span><b>Blocker</b>${escapeHtml(plan.context.primaryBlocker.replaceAll('_',' '))}</span><span><b>Engagement</b>${escapeHtml(plan.context.engagementState)}</span><span><b>Confidence</b>${escapeHtml(plan.context.confidence)}</span>`;
+  document.querySelector('#context-summary').innerHTML = `<span><b>Mode</b>${escapeHtml(humanize(plan.context.recoveryMode))}</span><span><b>Blocker</b>${escapeHtml(humanize(plan.context.primaryBlocker))}</span><span><b>Engagement</b>${escapeHtml(plan.context.engagementState)}</span><span><b>Confidence</b>${escapeHtml(plan.context.confidence)}</span>`;
   document.querySelector('#diagnosis').textContent = plan.diagnosis;
   document.querySelector('#next-move').textContent = plan.nextMove;
   renderEvidence(plan);
-  document.querySelector('#sequence').innerHTML = plan.campaign.sevenDaySteps.map(sequenceStep).join('');
-  document.querySelector('#reactivation-card').innerHTML = `<div class="message-card-header"><h4>Reactivation message</h4><button class="copy-button" type="button" data-copy="reactivation">Copy</button></div><div class="message-copy">${escapeHtml(plan.campaign.reactivation)}</div>`;
-  const email = `Subject: ${plan.campaign.email.subject}\n\n${plan.campaign.email.body}`;
-  document.querySelector('#message-cards').innerHTML = [
-    messageCard('Opening SMS','sms',plan.campaign.sms),
-    messageCard('Voicemail','voicemail',plan.campaign.voicemail),
-    messageCard('Email','email',email,true),
-    messageCard('Blocker response','objection',plan.campaign.objectionResponse,true),
-    messageCard('Close the loop','closeLoop',plan.campaign.closeLoop)
-  ].join('');
-  emptyState.hidden = true;
-  results.hidden = false;
+
+  document.querySelector('#cadence-title').textContent = cadenceTitle(plan);
+  const sequence = document.querySelector('#sequence');
+  sequence.innerHTML = plan.campaign.sevenDaySteps.length
+    ? plan.campaign.sevenDaySteps.map(sequenceStep).join('')
+    : '<div class="empty-cadence"><strong>No active multi-touch cadence.</strong><span>Use the separate reactivation playbook instead.</span></div>';
+
+  const reactivationPlan = plan.campaign.reactivationPlan;
+  const reactivationCard = document.querySelector('#reactivation-card');
+  if (reactivationPlan && plan.campaign.reactivation) {
+    reactivationCard.innerHTML = `<div class="message-card-header"><div><span class="channel-tag">${escapeHtml(reactivationPlan.channel)}</span><h4>Reactivation touch · ${escapeHtml(reactivationPlan.day)}</h4></div><button class="copy-button" type="button" data-copy="reactivation">Copy</button></div><div class="message-copy">${escapeHtml(plan.campaign.reactivation)}</div>`;
+    document.querySelector('#reactivation-section').hidden = false;
+  } else {
+    reactivationCard.innerHTML = '';
+    document.querySelector('#reactivation-section').hidden = true;
+  }
+
+  const emailCopy = plan.campaign.email.subject || plan.campaign.email.body ? `Subject: ${plan.campaign.email.subject}\n\n${plan.campaign.email.body}` : '';
+  const cards = [
+    { title:'Opening SMS', key:'sms', copy:plan.campaign.sms },
+    { title:'Voicemail', key:'voicemail', copy:plan.campaign.voicemail },
+    { title:'Email', key:'email', copy:emailCopy, wide:true },
+    { title:'Blocker response', key:'objection', copy:plan.campaign.objectionResponse, wide:true },
+    { title:'Close the loop', key:'closeLoop', copy:plan.campaign.closeLoop }
+  ].filter((item) => item.copy && item.copy.trim());
+  document.querySelector('#message-cards').innerHTML = cards.length
+    ? cards.map((item) => messageCard(item.title,item.key,item.copy,item.wide)).join('')
+    : '<div class="empty-cadence"><strong>No extra channel-safe toolkit items.</strong><span>Use the campaign payload above.</span></div>';
+
   setExportEnabled(true);
   scrollToResults();
 }
@@ -167,7 +223,7 @@ function copyForKey(key) {
   if (key === 'full') return formatPlanText(currentInput, currentPlan);
   if (key === 'sms') return currentPlan.campaign.sms;
   if (key === 'voicemail') return currentPlan.campaign.voicemail;
-  if (key === 'email') return `Subject: ${currentPlan.campaign.email.subject}\n\n${currentPlan.campaign.email.body}`;
+  if (key === 'email') return currentPlan.campaign.email.subject || currentPlan.campaign.email.body ? `Subject: ${currentPlan.campaign.email.subject}\n\n${currentPlan.campaign.email.body}` : '';
   if (key === 'objection') return currentPlan.campaign.objectionResponse;
   if (key === 'closeLoop') return currentPlan.campaign.closeLoop;
   if (key === 'reactivation') return currentPlan.campaign.reactivation;
@@ -220,7 +276,9 @@ form.addEventListener('submit', (event) => {
   clearErrors();
   currentInput = validation.value;
   currentPlan = generateRecoveryPlan(currentInput);
-  if (currentPlan.blocked) renderBlocked(currentInput, currentPlan); else renderPlan(currentInput, currentPlan);
+  if (currentPlan.blocked) renderBlocked(currentInput,currentPlan);
+  else if (currentPlan.sendBlocked) renderSendHold(currentInput,currentPlan);
+  else renderPlan(currentInput,currentPlan);
 });
 
 document.querySelector('#load-example').addEventListener('click', () => { setFormValues(example); clearErrors(); markPlanStale(); showToast('Example loaded'); });
