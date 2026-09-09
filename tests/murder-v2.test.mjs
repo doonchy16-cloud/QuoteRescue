@@ -101,14 +101,12 @@ test('V2 combinatorial murder matrix: 25,920 supported states preserve global in
   failIfAny('V2 matrix found contract violations',findings,count);
 });
 
-test('V2 safety lexicon: strong opt-out / wrong-recipient phrases hard-block outreach', () => {
+test('V2 safety lexicon: strong global opt-out / wrong-recipient phrases hard-block outreach', () => {
   const phrases = [
-    'STOP','Please stop','Stop reaching out','Stop emailing me','Do not call me','Do not text me','Do not email me',
-    "Don't call me","Don't text me","Don't message me",'Never call me','Never text me','Never email me','Never reach out again',
-    "Please don't reach out again",'No more texts','No more calls','No more messages','Leave me alone','Take me off your list',
-    'Take me off the call list','Remove me from your list','Remove me from marketing','Remove my number','Delete my number','Opt me out',
-    'I revoke consent to contact me','Cease contact','Cease communications','This is the wrong number','Wrong number — remove me',
-    'I am not Alex; do not contact this number','Unsubscribe me','Quit texting me','Quit calling me','No calls please','No texts please',
+    'STOP','Please stop','Stop reaching out',"Don't message me",'Never reach out again',"Please don't reach out again",
+    'No more messages','Leave me alone','Take me off your list','Remove me from your list','Remove me from marketing',
+    'Remove my number','Delete my number','Opt me out','I revoke consent to contact me','Cease contact','Cease communications',
+    'This is the wrong number','Wrong number — remove me','I am not Alex; do not contact this number','Unsubscribe me',
     "Don't reach out",'Do not reach out'
   ];
   const missed=[];
@@ -116,7 +114,34 @@ test('V2 safety lexicon: strong opt-out / wrong-recipient phrases hard-block out
     const plan=generateRecoveryPlan({...base,contactPermission:'unknown',lastContact});
     if (!plan.blocked || plan.score!==0 || plan.campaign.sevenDaySteps.length!==0 || plan.campaign.reactivation!=='') missed.push({phrase:lastContact,blocked:plan.blocked,score:plan.score,mode:plan.context.recoveryMode});
   }
-  assert.deepEqual(missed,[],`Missed strong opt-out/wrong-recipient phrases:\n${JSON.stringify(missed,null,2)}`);
+  assert.deepEqual(missed,[],`Missed strong global opt-out/wrong-recipient phrases:\n${JSON.stringify(missed,null,2)}`);
+});
+
+test('V2 standalone channel-denial lexicon denies only the named channel', () => {
+  const cases = [
+    { text:'Do not call me', requested:'phone', denied:'phone' },
+    { text:"Don't call me", requested:'phone', denied:'phone' },
+    { text:'Never call me', requested:'phone', denied:'phone' },
+    { text:'No more calls', requested:'phone', denied:'phone' },
+    { text:'Take me off the call list', requested:'phone', denied:'phone' },
+    { text:'Quit calling me', requested:'phone', denied:'phone' },
+    { text:'No calls please', requested:'phone', denied:'phone' },
+    { text:'Do not text me', requested:'sms', denied:'sms' },
+    { text:"Don't text me", requested:'sms', denied:'sms' },
+    { text:'Never text me', requested:'sms', denied:'sms' },
+    { text:'No more texts', requested:'sms', denied:'sms' },
+    { text:'Quit texting me', requested:'sms', denied:'sms' },
+    { text:'No texts please', requested:'sms', denied:'sms' },
+    { text:'Stop emailing me', requested:'email', denied:'email' },
+    { text:'Do not email me', requested:'email', denied:'email' },
+    { text:'Never email me', requested:'email', denied:'email' }
+  ];
+  const violations=[];
+  for (const c of cases) {
+    const plan=generateRecoveryPlan({...base,contactPermission:'unknown',lastContact:c.text,primaryChannel:c.requested});
+    if (plan.blocked || plan.context.channelPolicy.channels[c.denied]!=='denied' || !plan.sendBlocked) violations.push({ ...c, blocked:plan.blocked, policy:plan.context.channelPolicy, sendBlocked:plan.sendBlocked });
+  }
+  assert.deepEqual(violations,[],`Standalone channel-denial violations:\n${JSON.stringify(violations,null,2)}`);
 });
 
 test('V2 channel restriction attack: prohibited channels are never generated or selected', () => {
