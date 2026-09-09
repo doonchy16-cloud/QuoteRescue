@@ -238,6 +238,7 @@ function ensureCurrentPlanFresh() {
 }
 
 function copyForKey(key) {
+  if (!currentPlan || uiStatus !== 'current') return '';
   if (!ensureCurrentPlanFresh()) return '';
   if (key === 'full') return formatPlanText(currentInput, currentPlan);
   if (key === 'sms') return currentPlan.campaign.sms;
@@ -283,6 +284,7 @@ function showToast(message) {
 }
 
 function downloadText() {
+  if (!currentPlan || uiStatus !== 'current') return;
   if (!ensureCurrentPlanFresh()) return;
   let url = null;
   let a = null;
