@@ -1,13 +1,26 @@
 import { CHANNELS } from './domain.js';
 
+const POLICY_FORMAT_CONTROLS = /[\u200B-\u200F\u202A-\u202E\u2060\u2066-\u2069\uFEFF]/g;
+const CHANNEL_SCOPE = '(?:phone|call|text|sms|email)';
+const CHANNEL_SCOPE_SUFFIX = `\\s+(?:me\\s+)?(?:by|via)\\s+${CHANNEL_SCOPE}\\b`;
+
+function normalizePolicyText(value) {
+  return String(value ?? '')
+    .normalize('NFKC')
+    .replace(POLICY_FORMAT_CONTROLS, '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 const BROAD_STOP = [
   /^\s*stop[.!?\s]*$/i,
   /^\s*please\s+stop[.!?\s]*$/i,
-  /\b(?:customer|client|they|he|she)\s+(?:said|wrote|replied)\s+["“']?stop["”']?[.!?\s]*$/i,
-  /\bstop\s+(?:reaching\s+out|contacting|messaging)\b/i,
-  /\bdo\s+not\s+(?:contact|reach\s+out|message)\b/i,
-  /\bdon['’]?t\s+(?:contact|reach\s+out|message)\b/i,
-  /\bnever\s+(?:contact|reach\s+out|message)\b/i,
+  /\b(?:customer|client|they|he|she)\s+(?:said|wrote|replied)\s*[:;,—–-]?\s*["“”'‘’]?stop["“”'‘’]?[.!?\s]*$/i,
+  new RegExp(`\\bstop\\s+(?:reaching\\s+out|contacting|messaging)\\b(?!${CHANNEL_SCOPE_SUFFIX})`, 'i'),
+  new RegExp(`\\bdo\\s+not\\s+(?:contact|reach\\s+out|message)\\b(?!${CHANNEL_SCOPE_SUFFIX})`, 'i'),
+  new RegExp(`\\bdon['’]?t\\s+(?:contact|reach\\s+out|message)\\b(?!${CHANNEL_SCOPE_SUFFIX})`, 'i'),
+  new RegExp(`\\bnever\\s+(?:contact|reach\\s+out|message)\\b(?!${CHANNEL_SCOPE_SUFFIX})`, 'i'),
   /\bno\s+more\s+(?:messages|contact)\b/i,
   /\bleave\s+me\s+alone\b/i,
   /\b(?:take|remove)\s+me\s+off\s+(?:your\s+)?(?:list|marketing)\b/i,
@@ -22,15 +35,30 @@ const BROAD_STOP = [
 ];
 
 const WRONG_RECIPIENT = [
-  /^\s*(?:this\s+is\s+)?(?:the\s+)?wrong\s+number(?:\s*[—-]\s*(?:remove\s+me|stop(?:\s+contacting\s+me)?|do\s+not\s+contact.*))?[.!?\s]*$/i,
-  /^\s*you(?:'ve|\s+have)?\s+(?:got\s+)?the\s+wrong\s+number[.!?\s]*$/i,
+  /^\s*(?:sorry[,!]?\s*)?(?:this\s+is\s+)?(?:the\s+)?wrong\s+number(?:\s*[—-]\s*(?:remove\s+me|stop(?:\s+contacting\s+me)?|do\s+not\s+contact.*))?[.!?\s]*$/i,
+  /^\s*(?:sorry[,!]?\s*)?you(?:'ve|\s+have)?\s+(?:got\s+)?the\s+wrong\s+number[.!?\s]*$/i,
+  /^\s*not\s+[^.!?]+[.!?]\s*wrong\s+number[.!?\s]*$/i,
+  /^\s*this\s+number\s+(?:does\s+not|doesn't)\s+belong\s+to\s+[^.!?]+[.!?\s]*$/i,
   /\bi\s+am\s+not\s+[^.;]+\s*;?\s*do\s+not\s+contact\s+this\s+number\b/i
 ];
 
 const DENY = Object.freeze({
-  sms:[/\bdo\s+not\s+text(?:\s+me)?\b/i,/\bdon['’]?t\s+text(?:\s+me)?\b/i,/\bnever\s+text(?:\s+me)?\b/i,/\bno\s+(?:more\s+)?texts?(?:\s+please)?\b/i,/\bquit\s+texting(?:\s+me)?\b/i,/\bstop\s+texting(?:\s+me)?\b/i],
-  phone:[/\bdo\s+not\s+call(?:\s+me)?\b/i,/\bdon['’]?t\s+call(?:\s+me)?\b/i,/\bnever\s+call(?:\s+me)?\b/i,/\bno\s+(?:more\s+)?calls?(?:\s+please)?\b/i,/\bquit\s+calling(?:\s+me)?\b/i,/\bstop\s+calling(?:\s+me)?\b/i,/\b(?:take|remove)\s+me\s+(?:off|from)\s+(?:the\s+)?call\s+list\b/i],
-  email:[/\bdo\s+not\s+email(?:\s+me)?\b/i,/\bdon['’]?t\s+email(?:\s+me)?\b/i,/\bnever\s+email(?:\s+me)?\b/i,/\bno\s+(?:more\s+)?emails?(?:\s+please)?\b/i,/\bstop\s+emailing(?:\s+me)?\b/i]
+  sms:[
+    /\bdo\s+not\s+text(?:\s+me)?\b/i,/\bdon['’]?t\s+text(?:\s+me)?\b/i,/\bnever\s+text(?:\s+me)?\b/i,
+    /\bno\s+(?:more\s+)?texts?(?:\s+please)?\b/i,/\bquit\s+texting(?:\s+me)?\b/i,/\bstop\s+texting(?:\s+me)?\b/i,
+    /\b(?:do\s+not|don['’]?t|never)\s+contact(?:\s+me)?\s+(?:by|via)\s+(?:text|sms)\b/i
+  ],
+  phone:[
+    /\bdo\s+not\s+call(?:\s+me)?\b/i,/\bdon['’]?t\s+call(?:\s+me)?\b/i,/\bnever\s+call(?:\s+me)?\b/i,
+    /\bno\s+(?:more\s+)?calls?(?:\s+please)?\b/i,/\bquit\s+calling(?:\s+me)?\b/i,/\bstop\s+calling(?:\s+me)?\b/i,
+    /\b(?:take|remove)\s+me\s+(?:off|from)\s+(?:the\s+)?call\s+list\b/i,
+    /\b(?:do\s+not|don['’]?t|never)\s+contact(?:\s+me)?\s+(?:by|via)\s+(?:phone|call)\b/i
+  ],
+  email:[
+    /\bdo\s+not\s+email(?:\s+me)?\b/i,/\bdon['’]?t\s+email(?:\s+me)?\b/i,/\bnever\s+email(?:\s+me)?\b/i,
+    /\bno\s+(?:more\s+)?emails?(?:\s+please)?\b/i,/\bstop\s+emailing(?:\s+me)?\b/i,
+    /\b(?:do\s+not|don['’]?t|never)\s+contact(?:\s+me)?\s+(?:by|via)\s+email\b/i
+  ]
 });
 
 const ALLOW = Object.freeze({
@@ -48,7 +76,7 @@ const ONLY = Object.freeze({
 const anyMatch=(patterns,text)=>patterns.some((pattern)=>pattern.test(text));
 
 export function deriveContactPolicy(input={}){
-  const text=String(input.lastContact??'');
+  const text=normalizePolicyText(input.lastContact);
   const evidence=[],conflicts=[];
   const channels={sms:input.smsPermission??'unknown',phone:input.phonePermission??'unknown',email:input.emailPermission??'unknown'};
 
