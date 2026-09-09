@@ -26,8 +26,18 @@ test('a denied preferred channel with no explicitly allowed fallback creates sen
   assert.equal(plan.campaign.sevenDaySteps.length, 0);
 });
 
+test('global allowed contact does not invent explicit permission for an alternative channel', () => {
+  const plan = generateRecoveryPlan({ ...base, contactPermission:'allowed', lastContact:'Do not call me.', primaryChannel:'phone' });
+  assert.equal(plan.blocked, false);
+  assert.equal(plan.context.channelPolicy.channels.phone, 'denied');
+  assert.equal(plan.context.channelPolicy.channels.sms, 'unknown');
+  assert.equal(plan.context.channelPolicy.channels.email, 'unknown');
+  assert.equal(plan.sendBlocked, true);
+  assert.equal(plan.campaign.effectiveChannel, null);
+});
+
 test('close-loop phone strategy is exactly one outbound communication, not voicemail plus SMS', () => {
-  const plan = generateRecoveryPlan({ ...base, stage:'lost_ghosted', quoteAgeDays:'4', contactPermission:'allowed', primaryChannel:'phone' });
+  const plan = generateRecoveryPlan({ ...base, stage:'lost_ghosted', quoteAgeDays:'4', contactPermission:'allowed', phonePermission:'allowed', primaryChannel:'phone' });
   assert.equal(plan.context.recoveryMode, 'close_loop');
   assert.equal(plan.campaign.sevenDaySteps.length, 1);
   const step = plan.campaign.sevenDaySteps[0];
